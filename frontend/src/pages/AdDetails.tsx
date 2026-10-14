@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LISTING_TYPES } from '../data/categories';
+import { removeAdFromLocalStorage, isAdDeletedLocally } from '../utils/adStorage';
 
 export default function AdDetails() {
   const { slug } = useParams();
@@ -37,7 +38,11 @@ export default function AdDetails() {
 
   useEffect(() => {
     const fetchDbAd = async () => {
-      if (!slug) return;
+      if (!slug || isAdDeletedLocally(slug)) {
+        setAd(null);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
@@ -212,7 +217,10 @@ export default function AdDetails() {
   const handleDeleteAd = async () => {
     if (!confirm('Are you sure you want to delete this advertisement?')) return;
     try {
-      await (supabase.from('ads') as any).delete().eq('id', ad.id);
+      if (ad?.id) {
+        removeAdFromLocalStorage(ad.id, ad.slug);
+        await (supabase.from('ads') as any).delete().eq('id', ad.id);
+      }
       navigate('/browse');
     } catch (err) {
       console.error(err);

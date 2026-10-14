@@ -4,6 +4,7 @@ import { Search, MapPin, ChevronRight, Sparkles, ShieldCheck, Tag, PlusCircle, P
 import * as Icons from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
+import { getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
 
 interface CategoryItem {
   id: string;
@@ -91,17 +92,26 @@ export default function Home() {
           console.warn('Home ads fetch notice:', e);
         }
 
-        let localAds = [];
-        try {
-          localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
-        } catch (e) {}
+        // Filter out tombstoned deleted ads
+        const deletedIds = getDeletedAdIds();
+        remoteAds = remoteAds.filter((a: any) => !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug)));
+
+        // Purge stale local ads that were deleted in Supabase
+        const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
+        const localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds).filter((a: any) => 
+          !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug))
+        );
 
         const mergedMap = new Map();
         localAds.forEach((ad: any) => {
-          if (ad && (ad.id || ad.slug)) mergedMap.set(ad.id || ad.slug, ad);
+          if (ad && (ad.id || ad.slug) && !deletedIds.has(ad.id)) {
+            mergedMap.set(ad.id || ad.slug, ad);
+          }
         });
         remoteAds.forEach((ad: any) => {
-          if (ad && (ad.id || ad.slug)) mergedMap.set(ad.id || ad.slug, ad);
+          if (ad && (ad.id || ad.slug) && !deletedIds.has(ad.id)) {
+            mergedMap.set(ad.id || ad.slug, ad);
+          }
         });
 
         const combinedList = Array.from(mergedMap.values());

@@ -4,6 +4,7 @@ import { Trash2, Eye, PlusCircle, CheckCircle, ExternalLink, RefreshCw, AlertCir
 import { clsx } from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { removeAdFromLocalStorage, getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
 
 interface AdItem {
   id: string;
@@ -41,25 +42,38 @@ export default function MyAds() {
         query = query.eq('user_id', user.id);
       }
 
-      let remoteAds = [];
+      let remoteAds: any[] = [];
       try {
         const { data, error } = await query.order('created_at', { ascending: false });
-        if (!error && data) remoteAds = data;
+        if (!error && Array.isArray(data)) {
+          remoteAds = data;
+        }
       } catch (e) {}
 
-      // Fetch user's local ads from localStorage
-      let localAds = [];
-      try {
-        const stored = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
-        localAds = stored.filter((a: any) => a.user_id === user.id || a.contact_phone === profile?.phone);
-      } catch (e) {}
+      // Get tombstone deleted ad IDs
+      const deletedIds = getDeletedAdIds();
+
+      // Live remote IDs
+      const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
+
+      // Purge stale local ads that were deleted in Supabase
+      const validLocal = purgeDeletedAndStaleLocalAds(liveRemoteIds);
+      const userLocalAds = validLocal.filter((a: any) => 
+        (a.user_id === user.id || a.contact_phone === profile?.phone) &&
+        !deletedIds.has(a.id) &&
+        (!a.slug || !deletedIds.has(a.slug))
+      );
 
       const mergedMap = new Map();
-      localAds.forEach((item: any) => {
-        if (item && (item.id || item.slug)) mergedMap.set(item.id || item.slug, item);
+      userLocalAds.forEach((item: any) => {
+        if (item && (item.id || item.slug) && !deletedIds.has(item.id)) {
+          mergedMap.set(item.id || item.slug, item);
+        }
       });
       remoteAds.forEach((item: any) => {
-        if (item && (item.id || item.slug)) mergedMap.set(item.id || item.slug, item);
+        if (item && (item.id || item.slug) && !deletedIds.has(item.id)) {
+          mergedMap.set(item.id || item.slug, item);
+        }
       });
 
       const combinedList = Array.from(mergedMap.values());
@@ -112,6 +126,8 @@ export default function MyAds() {
     if (!confirm('Are you sure you want to permanently delete this listing?')) return;
     try {
       setAds(prev => prev.filter(a => a.id !== id));
+      // Remove from localStorage and add to deleted tombstone list
+      removeAdFromLocalStorage(id);
       const { error } = await (supabase.from('ads') as any).delete().eq('id', id);
       if (error) {
         console.warn('Delete warning:', error.message);

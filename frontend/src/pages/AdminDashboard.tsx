@@ -23,6 +23,7 @@ import {
   Plus 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { removeAdFromLocalStorage } from '../utils/adStorage';
 
 interface AdItem {
   id: string;
@@ -310,6 +311,7 @@ export default function AdminDashboard() {
   const handleDeleteAd = async (adId: string) => {
     if (!confirm('Are you sure you want to permanently remove this advertisement?')) return;
     setAds(prev => prev.filter(a => a.id !== adId));
+    removeAdFromLocalStorage(adId);
     try {
       await (supabase.from('ads') as any).delete().eq('id', adId);
       showToast('Advertisement deleted');

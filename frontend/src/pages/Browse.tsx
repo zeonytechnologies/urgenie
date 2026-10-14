@@ -4,6 +4,7 @@ import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, S
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
 import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES } from '../data/categories';
+import { getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
 
 interface AdDisplayItem {
   id: string;
@@ -115,11 +116,15 @@ export default function Browse() {
           console.warn('Remote ads fetch notice:', fetchErr);
         }
 
-        // 2. Fetch locally saved ads from localStorage and auto-sync any unsaved ads to Supabase
-        let localAds: any[] = [];
-        try {
-          localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
-        } catch {}
+        // 2. Filter out any ads deleted locally (tombstones)
+        const deletedIds = getDeletedAdIds();
+        remoteAds = remoteAds.filter((a: any) => !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug)));
+
+        // 3. Purge stale local ads that were deleted in Supabase
+        const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
+        let localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds).filter((a: any) => 
+          !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug))
+        );
 
         // Automatically sync any ads that were saved only locally (id starts with 'ad-')
         const stuckAds = localAds.filter((a: any) => typeof a.id === 'string' && a.id.startsWith('ad-'));
@@ -165,12 +170,12 @@ export default function Browse() {
         // Combine and deduplicate
         const mergedMap = new Map<string, any>();
         localAds.forEach((ad: any) => {
-          if (ad && (ad.id || ad.slug)) {
+          if (ad && (ad.id || ad.slug) && !deletedIds.has(ad.id)) {
             mergedMap.set(ad.id || ad.slug, ad);
           }
         });
         remoteAds.forEach((ad: any) => {
-          if (ad && (ad.id || ad.slug)) {
+          if (ad && (ad.id || ad.slug) && !deletedIds.has(ad.id)) {
             mergedMap.set(ad.id || ad.slug, ad);
           }
         });
