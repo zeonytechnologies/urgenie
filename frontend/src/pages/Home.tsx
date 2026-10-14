@@ -23,14 +23,17 @@ interface AdItem {
 }
 
 const DEFAULT_CATEGORIES: CategoryItem[] = [
-  { id: 'jobs', name: 'Jobs', icon: 'Briefcase', count: 0 },
-  { id: 'property', name: 'Property', icon: 'Building2', count: 0 },
-  { id: 'vehicles', name: 'Vehicles', icon: 'Car', count: 0 },
-  { id: 'electronics', name: 'Electronics', icon: 'Smartphone', count: 0 },
-  { id: 'services', name: 'Services', icon: 'Wrench', count: 0 },
-  { id: 'business', name: 'Business', icon: 'Store', count: 0 },
-  { id: 'buy-sell', name: 'Buy & Sell', icon: 'Tag', count: 0 },
-  { id: 'community', name: 'Community', icon: 'Users', count: 0 },
+  { id: 'vehicles', name: 'Vehicles & Bikes', icon: 'Car', count: 620 },
+  { id: 'property', name: 'Houses & Properties', icon: 'Building2', count: 850 },
+  { id: 'mobiles', name: 'Mobiles & Tech', icon: 'Smartphone', count: 740 },
+  { id: 'electronics', name: 'Electronics & Appliances', icon: 'Tv', count: 590 },
+  { id: 'jobs', name: 'Jobs & Careers', icon: 'Briefcase', count: 1240 },
+  { id: 'business', name: 'Business', icon: 'Store', count: 210 },
+  { id: 'services', name: 'Local Services', icon: 'Wrench', count: 420 },
+  { id: 'buy-sell', name: 'Buy & Sell', icon: 'ShoppingBag', count: 980 },
+  { id: 'furniture', name: 'Home & Furniture', icon: 'Sofa', count: 460 },
+  { id: 'commercial', name: 'Commercial & Industrial', icon: 'Factory', count: 320 },
+  { id: 'community', name: 'Community', icon: 'Users', count: 85 },
 ];
 
 const DEFAULT_HOME_LOCATIONS = [
@@ -47,13 +50,16 @@ const DEFAULT_HOME_LOCATIONS = [
 ];
 
 const CATEGORY_COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
-  jobs: { bg: 'bg-blue-500/10', text: 'text-blue-600', ring: 'group-hover:border-blue-500' },
-  property: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', ring: 'group-hover:border-emerald-500' },
   vehicles: { bg: 'bg-indigo-500/10', text: 'text-indigo-600', ring: 'group-hover:border-indigo-500' },
+  property: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', ring: 'group-hover:border-emerald-500' },
+  mobiles: { bg: 'bg-blue-500/10', text: 'text-blue-600', ring: 'group-hover:border-blue-500' },
   electronics: { bg: 'bg-amber-500/10', text: 'text-amber-600', ring: 'group-hover:border-amber-500' },
-  services: { bg: 'bg-rose-500/10', text: 'text-rose-600', ring: 'group-hover:border-rose-500' },
-  business: { bg: 'bg-purple-500/10', text: 'text-purple-600', ring: 'group-hover:border-purple-500' },
-  'buy-sell': { bg: 'bg-cyan-500/10', text: 'text-cyan-600', ring: 'group-hover:border-cyan-500' },
+  jobs: { bg: 'bg-purple-500/10', text: 'text-purple-600', ring: 'group-hover:border-purple-500' },
+  business: { bg: 'bg-rose-500/10', text: 'text-rose-600', ring: 'group-hover:border-rose-500' },
+  services: { bg: 'bg-cyan-500/10', text: 'text-cyan-600', ring: 'group-hover:border-cyan-500' },
+  'buy-sell': { bg: 'bg-pink-500/10', text: 'text-pink-600', ring: 'group-hover:border-pink-500' },
+  furniture: { bg: 'bg-orange-500/10', text: 'text-orange-600', ring: 'group-hover:border-orange-500' },
+  commercial: { bg: 'bg-slate-500/10', text: 'text-slate-700', ring: 'group-hover:border-slate-500' },
   community: { bg: 'bg-teal-500/10', text: 'text-teal-600', ring: 'group-hover:border-teal-500' },
 };
 
@@ -297,7 +303,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
           {categories.map((category) => {
             const Icon = (Icons as any)[category.icon] || Tag;
             const style = CATEGORY_COLOR_MAP[category.id] || { bg: 'bg-blue-50', text: 'text-blue-600', ring: 'group-hover:border-blue-400' };

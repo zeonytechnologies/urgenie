@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, Tag } from 'lucide-react';
+import { MapPin, Clock, Tag, Sparkles } from 'lucide-react';
 
 interface AdCardProps {
   ad: {
@@ -9,11 +9,25 @@ interface AdCardProps {
     location: string;
     image: string;
     category: string;
+    subcategory?: string;
+    listingType?: string;
     postedAt: string;
   };
 }
 
+const LISTING_TYPE_BADGES: Record<string, { label: string; bg: string; text: string }> = {
+  new: { label: 'Brand New', bg: 'bg-emerald-500/90', text: 'text-white' },
+  preowned: { label: 'Pre-owned', bg: 'bg-blue-600/90', text: 'text-white' },
+  rent: { label: 'For Rent', bg: 'bg-amber-500/95', text: 'text-white' },
+  job: { label: 'Job Opening', bg: 'bg-purple-600/90', text: 'text-white' },
+  service: { label: 'Service', bg: 'bg-cyan-600/90', text: 'text-white' },
+  free: { label: 'Free Giveaway', bg: 'bg-rose-500/95', text: 'text-white' },
+};
+
 export default function AdCard({ ad }: AdCardProps) {
+  const typeKey = (ad.listingType || '').toLowerCase();
+  const typeBadge = LISTING_TYPE_BADGES[typeKey];
+
   return (
     <Link 
       to={`/ad/${ad.id}`} 
@@ -29,10 +43,18 @@ export default function AdCard({ ad }: AdCardProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Category Badge */}
-        <div className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-extrabold text-slate-800 capitalize shadow-xs border border-white/60 tracking-wide flex items-center gap-1">
+        {/* Listing Type Badge (Top-Left) */}
+        {typeBadge && (
+          <div className={`absolute top-2.5 left-2.5 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${typeBadge.bg} ${typeBadge.text} flex items-center gap-1`}>
+            <Sparkles className="h-2.5 w-2.5" />
+            <span>{typeBadge.label}</span>
+          </div>
+        )}
+
+        {/* Category Badge (Top-Right) */}
+        <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-extrabold text-slate-800 capitalize shadow-xs border border-white/60 tracking-wide flex items-center gap-1">
           <Tag className="h-3 w-3 text-blue-600" />
-          <span>{ad.category}</span>
+          <span className="truncate max-w-[100px]">{ad.category}</span>
         </div>
       </div>
 

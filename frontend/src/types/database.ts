@@ -7,6 +7,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type AdStatus = 'active' | 'pending' | 'expired' | 'sold' | 'rejected' | 'deleted';
 export type AdCondition = 'new' | 'like_new' | 'good' | 'fair' | 'for_parts';
+export type ListingType = 'new' | 'preowned' | 'rent' | 'job' | 'service' | 'free';
 export type ReportReason = 'spam' | 'fraud' | 'inappropriate' | 'duplicate' | 'wrong_category' | 'other';
 export type MessageStatus = 'sent' | 'delivered' | 'read';
 export type UserRole = 'user' | 'seller' | 'admin';

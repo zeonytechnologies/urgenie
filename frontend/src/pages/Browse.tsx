@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle } from 'lucide-react';
+import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, Sparkles } from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
+import { CATEGORIES, LISTING_TYPES } from '../data/categories';
 
 interface AdDisplayItem {
   id: string;
@@ -11,6 +12,7 @@ interface AdDisplayItem {
   priceNum: number;
   category: string;
   subcategory?: string;
+  listingType?: string;
   location: string;
   condition?: string;
   image: string;
@@ -22,16 +24,10 @@ interface CategoryItem {
   name: string;
 }
 
-const DEFAULT_CATEGORIES: CategoryItem[] = [
-  { id: 'jobs', name: 'Jobs' },
-  { id: 'property', name: 'Property' },
-  { id: 'vehicles', name: 'Vehicles' },
-  { id: 'electronics', name: 'Electronics' },
-  { id: 'services', name: 'Services' },
-  { id: 'business', name: 'Business' },
-  { id: 'buy-sell', name: 'Buy & Sell' },
-  { id: 'community', name: 'Community' },
-];
+const DEFAULT_CATEGORIES: CategoryItem[] = CATEGORIES.map((cat: any) => ({
+  id: cat.id,
+  name: cat.name,
+}));
 
 export default function Browse() {
   const { category: paramCategory } = useParams();
@@ -39,6 +35,9 @@ export default function Browse() {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Filter States
+  const [selectedListingType, setSelectedListingType] = useState<string>(
+    searchParams.get('type') || 'all'
+  );
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     paramCategory ? [paramCategory] : []
   );
@@ -83,6 +82,10 @@ export default function Browse() {
     if (loc && !selectedLocations.includes(loc)) {
       setSelectedLocations([loc]);
     }
+    const typeParam = searchParams.get('type');
+    if (typeParam) {
+      setSelectedListingType(typeParam);
+    }
   }, [searchParams]);
 
   // Fetch real Supabase ads, categories, and locations
@@ -92,7 +95,7 @@ export default function Browse() {
       try {
         // 1. Fetch real ads
         const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
-          .select('id, title, price, location_name, location_text, category_id, condition, images, created_at')
+          .select('id, title, price, location_name, location_text, category_id, subcategory_id, listing_type, condition, images, created_at')
           .eq('status', 'active')
           .order('created_at', { ascending: false });
 
@@ -100,9 +103,11 @@ export default function Browse() {
           const mapped: AdDisplayItem[] = adsData.map((item: any) => ({
             id: item.id,
             title: item.title,
-            price: `₹${Number(item.price || 0).toLocaleString()}`,
+            price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
             priceNum: Number(item.price) || 0,
             category: item.category_id || 'General',
+            subcategory: item.subcategory_id || undefined,
+            listingType: item.listing_type || 'preowned',
             location: item.location_name || item.location_text || 'Hosur',
             condition: item.condition || 'good',
             image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
@@ -150,6 +155,12 @@ export default function Browse() {
         if (!matchTitle && !matchCat && !matchLoc) return false;
       }
 
+      // Listing Type
+      if (selectedListingType !== 'all') {
+        const adType = (ad.listingType || '').toLowerCase();
+        if (adType !== selectedListingType.toLowerCase()) return false;
+      }
+
       // Categories
       if (selectedCategories.length > 0) {
         const matchCategory = selectedCategories.some((cat) => {
@@ -193,7 +204,7 @@ export default function Browse() {
       if (sortBy === 'price-high') return b.priceNum - a.priceNum;
       return 0; // default newest
     });
-  }, [dbAds, searchTerm, selectedCategories, selectedLocations, minPrice, maxPrice, selectedCondition, sortBy]);
+  }, [dbAds, searchTerm, selectedListingType, selectedCategories, selectedLocations, minPrice, maxPrice, selectedCondition, sortBy]);
 
   // Pagination calculation
   const itemsPerPage = 9;
@@ -215,6 +226,7 @@ export default function Browse() {
   };
 
   const clearAllFilters = () => {
+    setSelectedListingType('all');
     setSelectedCategories([]);
     setSelectedLocations([]);
     setMinPrice('');
@@ -264,11 +276,49 @@ export default function Browse() {
         </div>
       </div>
 
+      {/* Listing Type Matrix Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
+        {[
+          { id: 'all', label: 'All Listings' },
+          { id: 'new', label: 'Sell New (N)' },
+          { id: 'preowned', label: 'Pre-owned (P)' },
+          { id: 'rent', label: 'Rent / Lease (R)' },
+          { id: 'job', label: 'Job Openings (J)' },
+          { id: 'service', label: 'Services (S)' },
+          { id: 'free', label: 'Community Free' },
+        ].map((type) => (
+          <button
+            key={type.id}
+            onClick={() => {
+              setSelectedListingType(type.id);
+              setCurrentPage(1);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              selectedListingType === type.id
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80 shadow-2xs'
+            }`}
+          >
+            {type.id === 'all' ? <Sparkles className="h-3 w-3" /> : null}
+            <span>{type.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Active Filter Chips */}
-      {(selectedCategories.length > 0 || selectedLocations.length > 0 || minPrice || maxPrice || searchTerm) && (
+      {(selectedListingType !== 'all' || selectedCategories.length > 0 || selectedLocations.length > 0 || minPrice || maxPrice || searchTerm) && (
         <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-blue-50/50 rounded-2xl border border-blue-100/70">
           <span className="text-xs font-bold text-slate-500 mr-1">Active filters:</span>
           
+          {selectedListingType !== 'all' && (
+            <span className="badge-chip bg-amber-100 text-amber-900 border border-amber-200 font-extrabold">
+              Listing: {LISTING_TYPES[selectedListingType]?.label || selectedListingType}
+              <button onClick={() => setSelectedListingType('all')} className="hover:text-red-500 ml-1">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+
           {searchTerm && (
             <span className="badge-chip bg-white text-slate-800 border border-slate-200 shadow-2xs">
               Keyword: "{searchTerm}"

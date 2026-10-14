@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { LISTING_TYPES } from '../data/categories';
 
 export default function AdDetails() {
   const { slug } = useParams();
@@ -49,8 +50,11 @@ export default function AdDetails() {
           setAd({
             id: data.id,
             title: data.title,
-            price: `₹${Number(data.price).toLocaleString()}`,
+            price: data.listing_type === 'free' ? 'FREE' : `₹${Number(data.price || 0).toLocaleString()}`,
             category: data.category_id || 'General',
+            subcategory: data.subcategory_id || '',
+            listing_type: data.listing_type || 'preowned',
+            attributes: data.attributes || {},
             location: data.location_name || data.city || 'Hosur',
             postedAt: new Date(data.created_at).toLocaleDateString(),
             image: data.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
@@ -243,6 +247,20 @@ export default function AdDetails() {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-card">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-100 pb-6 mb-6">
               <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {ad.listing_type && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                      LISTING_TYPES[ad.listing_type]?.bgLight || 'bg-blue-50 text-blue-700'
+                    } ${LISTING_TYPES[ad.listing_type]?.color || 'border-blue-200'}`}>
+                      {LISTING_TYPES[ad.listing_type]?.badge || ad.listing_type}
+                    </span>
+                  )}
+                  {ad.subcategory && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 capitalize">
+                      {ad.subcategory}
+                    </span>
+                  )}
+                </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 leading-snug">{ad.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 font-semibold">
                   <div className="flex items-center gap-1.5 text-slate-700">
@@ -268,6 +286,12 @@ export default function AdDetails() {
                 <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize">{ad.category}</span>
               </div>
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Listing Type</span>
+                <span className="font-extrabold text-blue-600 text-xs sm:text-sm capitalize">
+                  {LISTING_TYPES[ad.listing_type]?.label || ad.listing_type}
+                </span>
+              </div>
+              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
                 <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Condition</span>
                 <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize">{ad.condition}</span>
               </div>
@@ -276,7 +300,7 @@ export default function AdDetails() {
                 <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate block">{ad.location}</span>
               </div>
 
-              {/* Parsed Custom Category Specifications */}
+              {/* Parsed Custom Category Specifications & Attributes */}
               {(() => {
                 const lines = ((ad.description as string) || '').split('\n');
                 const specList: { label: string; value: string }[] = [];
@@ -286,9 +310,23 @@ export default function AdDetails() {
                     specList.push({ label: m[1].trim(), value: m[2].trim() });
                   }
                 });
+
+                // Include attributes jsonb if present
+                if (ad.attributes && typeof ad.attributes === 'object') {
+                  Object.entries(ad.attributes).forEach(([k, v]) => {
+                    if (v && typeof v !== 'object') {
+                      const cleanLabel = k.replace(/_/g, ' ');
+                      const alreadyInList = specList.some(s => s.label.toLowerCase() === cleanLabel.toLowerCase());
+                      if (!alreadyInList) {
+                        specList.push({ label: cleanLabel, value: String(v) });
+                      }
+                    }
+                  });
+                }
+
                 return specList.map((item, idx) => (
                   <div key={idx} className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                    <span className="text-[10px] text-blue-600 block font-bold uppercase tracking-wider truncate">{item.label}</span>
+                    <span className="text-[10px] text-blue-600 block font-bold uppercase tracking-wider truncate capitalize">{item.label}</span>
                     <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate block">{item.value}</span>
                   </div>
                 ));
