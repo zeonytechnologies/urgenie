@@ -93,8 +93,7 @@ export default function PostAd() {
   const [propertyArea, setPropertyArea] = useState('1200');
   const [propertyFurnishing, setPropertyFurnishing] = useState('Semi-Furnished');
   const [propertyFloor, setPropertyFloor] = useState('1st Floor (Out of 3)');
-  const [propertyDeposit, setPropertyDeposit] = useState('50000');
-  const [propertyFacing, setPropertyFacing] = useState('East Facing');
+    const [propertyFacing, setPropertyFacing] = useState('East Facing');
 
   // 3. Mobiles & Tech
   const [deviceBrand, setDeviceBrand] = useState('Apple');
@@ -123,7 +122,7 @@ export default function PostAd() {
 
   // 6. Rent Items Specifics
   const [rentPeriod, setRentPeriod] = useState('Per Month');
-  const [rentDeposit, setRentDeposit] = useState('5000');
+  const [rentDeposit, setRentDeposit] = useState('');
   const [rentAvailability, setRentAvailability] = useState('Immediate');
 
   // 7. Community
@@ -275,9 +274,8 @@ export default function PostAd() {
       tailoredAttributes.area_sqft = propertyArea;
       tailoredAttributes.furnishing = propertyFurnishing;
       tailoredAttributes.floor = propertyFloor;
-      tailoredAttributes.deposit = propertyDeposit;
-      tailoredAttributes.facing = propertyFacing;
-      specsSummary += `\n• Configuration: ${propertyBhk}\n• Area: ${propertyArea} Sq.Ft\n• Furnishing: ${propertyFurnishing}\n• Floor: ${propertyFloor}\n• Security Deposit: ₹${propertyDeposit}\n• Facing: ${propertyFacing}`;
+            tailoredAttributes.facing = propertyFacing;
+      specsSummary += `\n• Configuration: ${propertyBhk}\n• Area: ${propertyArea} Sq.Ft\n• Furnishing: ${propertyFurnishing}\n• Floor: ${propertyFloor}\n• Facing: ${propertyFacing}`;
     } else if (selectedCategory === 'mobiles' || selectedCategory === 'electronics') {
       tailoredAttributes.brand = deviceBrand;
       tailoredAttributes.model = deviceModel || 'Standard';
@@ -305,9 +303,12 @@ export default function PostAd() {
 
     if (selectedListingType === 'rent') {
       tailoredAttributes.rent_period = rentPeriod;
-      tailoredAttributes.rent_deposit = rentDeposit;
       tailoredAttributes.available_from = rentAvailability;
-      specsSummary += `\n• Rent Term: ${rentPeriod}\n• Security Deposit: ₹${rentDeposit}\n• Availability: ${rentAvailability}`;
+      specsSummary += `\n• Rent Rate: ₹${Number(price || 0).toLocaleString()} (${rentPeriod})\n• Availability: ${rentAvailability}`;
+      if (rentDeposit && Number(rentDeposit) > 0) {
+        tailoredAttributes.rent_deposit = rentDeposit;
+        specsSummary += `\n• Security Deposit: ₹${Number(rentDeposit).toLocaleString()}`;
+      }
     }
 
     const fullDescription = `${description.trim()}${specsSummary}`;
@@ -328,7 +329,11 @@ export default function PostAd() {
         slug: generatedSlug,
         description: fullDescription,
         price: selectedListingType === 'free' ? 0 : parseFloat(price) || 0,
-        price_text: selectedListingType === 'free' ? 'Free' : `₹${price}`,
+        price_text: selectedListingType === 'free' 
+          ? 'Free' 
+          : selectedListingType === 'rent'
+          ? `₹${Number(price || 0).toLocaleString()} / ${rentPeriod.replace(/^Per\s+/i, '')}`
+          : `₹${Number(price || 0).toLocaleString()}`,
         is_negotiable: isNegotiable,
         condition: condition,
         location_name: location,
@@ -750,16 +755,18 @@ export default function PostAd() {
                         placeholder="e.g. 1st Floor of 3"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Security Deposit (₹)</label>
-                      <input
-                        type="number"
-                        value={propertyDeposit}
-                        onChange={(e) => setPropertyDeposit(e.target.value)}
-                        className="input-field py-2 text-sm"
-                        placeholder="e.g. 50000"
-                      />
-                    </div>
+                    {selectedListingType !== 'rent' && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Total Expected Price (₹)</label>
+                        <input
+                          type="number"
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                          className="input-field py-2 text-sm font-bold text-blue-900"
+                          placeholder="e.g. 4500000"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Facing</label>
                       <select value={propertyFacing} onChange={(e) => setPropertyFacing(e.target.value)} className="input-field py-2 text-sm">
@@ -994,36 +1001,52 @@ export default function PostAd() {
                 </div>
               )}
 
-              {/* 6. Rent Mode specifics */}
+              {/* 6. Rent Mode specifics & Single Pricing */}
               {selectedListingType === 'rent' && (
                 <div className="p-5 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-amber-900">Rental Terms</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-amber-900">Rental Pricing & Terms</h3>
+                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full">Single Rate Entry</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-amber-900 mb-1">Rent Frequency</label>
-                      <select value={rentPeriod} onChange={(e) => setRentPeriod(e.target.value)} className="input-field py-2 text-sm">
-                        <option value="Per Day">Per Day</option>
-                        <option value="Per Month">Per Month</option>
-                        <option value="Per Hour">Per Hour</option>
+                      <label className="block text-xs font-bold text-amber-950 mb-1">Rent Amount (₹) *</label>
+                      <input
+                        type="number"
+                        required
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="input-field py-2 text-sm font-black text-amber-950 bg-white"
+                        placeholder="e.g. 50000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-amber-950 mb-1">Rent Frequency</label>
+                      <select value={rentPeriod} onChange={(e) => setRentPeriod(e.target.value)} className="input-field py-2 text-sm font-bold bg-white">
+                        <option value="Per Day">Per Day (Daily Rent)</option>
+                        <option value="Per Month">Per Month (Monthly Rent)</option>
+                        <option value="Per Hour">Per Hour (Hourly Rent)</option>
+                        <option value="Per Week">Per Week</option>
+                        <option value="Per Year">Per Year</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-amber-900 mb-1">Refundable Deposit (₹)</label>
+                      <label className="block text-xs font-bold text-amber-950 mb-1">Security Deposit (₹) <span className="text-[10px] text-amber-700 font-normal">(Optional)</span></label>
                       <input
                         type="number"
                         value={rentDeposit}
                         onChange={(e) => setRentDeposit(e.target.value)}
-                        className="input-field py-2 text-sm"
-                        placeholder="5000"
+                        className="input-field py-2 text-sm bg-white"
+                        placeholder="0 if none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-amber-900 mb-1">Availability</label>
+                      <label className="block text-xs font-bold text-amber-950 mb-1">Available From</label>
                       <input
                         type="text"
                         value={rentAvailability}
                         onChange={(e) => setRentAvailability(e.target.value)}
-                        className="input-field py-2 text-sm"
+                        className="input-field py-2 text-sm bg-white"
                         placeholder="Immediate / Available from..."
                       />
                     </div>
@@ -1120,16 +1143,21 @@ export default function PostAd() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-1.5">
-                    {selectedListingType === 'free' ? 'Pricing (Free)' : selectedListingType === 'job' ? 'Offered Salary (₹)' : selectedListingType === 'rent' ? 'Rent Price (₹)' : 'Selling Price (₹) *'}
+                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>{selectedListingType === 'free' ? 'Pricing (Free)' : selectedListingType === 'job' ? 'Offered Salary (₹)' : selectedListingType === 'rent' ? 'Rent Rate (₹) *' : 'Selling Price (₹) *'}</span>
+                    {selectedListingType === 'rent' && price && (
+                      <span className="text-amber-700 font-extrabold text-[11px] normal-case bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Configured: ₹{Number(price).toLocaleString()} / {rentPeriod.replace(/^Per\s+/i, '')}
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
                     disabled={selectedListingType === 'free'}
                     value={selectedListingType === 'free' ? '0' : price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="input-field py-2.5 text-sm"
-                    placeholder={selectedListingType === 'free' ? 'Free Giveaway' : 'e.g. 15000'}
+                    className="input-field py-2.5 text-sm font-bold"
+                    placeholder={selectedListingType === 'free' ? 'Free Giveaway' : selectedListingType === 'rent' ? 'e.g. 50000' : 'e.g. 15000'}
                   />
                   {selectedListingType !== 'free' && (
                     <label className="inline-flex items-center gap-2 mt-2 cursor-pointer text-xs font-semibold text-slate-700">

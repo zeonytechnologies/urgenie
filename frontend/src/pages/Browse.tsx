@@ -131,7 +131,13 @@ export default function Browse() {
         const mapped: AdDisplayItem[] = combinedList.map((item: any) => ({
           id: item.id || item.slug,
           title: item.title,
-          price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
+          price: item.listing_type === 'free'
+            ? 'FREE'
+            : item.price_text
+            ? item.price_text
+            : item.listing_type === 'rent'
+            ? `₹${Number(item.price || 0).toLocaleString()} / ${(item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
+            : `₹${Number(item.price || 0).toLocaleString()}`,
           priceNum: Number(item.price) || 0,
           category: item.category_id || 'General',
           subcategory: item.subcategory_id || undefined,

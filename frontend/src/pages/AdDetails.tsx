@@ -50,7 +50,13 @@ export default function AdDetails() {
           setAd({
             id: data.id,
             title: data.title,
-            price: data.listing_type === 'free' ? 'FREE' : `₹${Number(data.price || 0).toLocaleString()}`,
+            price: data.listing_type === 'free' 
+              ? 'FREE' 
+              : data.price_text 
+              ? data.price_text 
+              : data.listing_type === 'rent'
+              ? `₹${Number(data.price || 0).toLocaleString()} / ${(data.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
+              : `₹${Number(data.price || 0).toLocaleString()}`,
             category: data.category_id || 'General',
             subcategory: data.subcategory_id || '',
             listing_type: data.listing_type || 'preowned',
@@ -84,7 +90,13 @@ export default function AdDetails() {
               setAd({
                 id: found.id,
                 title: found.title,
-                price: found.listing_type === 'free' ? 'FREE' : `₹${Number(found.price || 0).toLocaleString()}`,
+                price: found.listing_type === 'free' 
+                ? 'FREE' 
+                : found.price_text 
+                ? found.price_text 
+                : found.listing_type === 'rent'
+                ? `₹${Number(found.price || 0).toLocaleString()} / ${(found.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
+                : `₹${Number(found.price || 0).toLocaleString()}`,
                 category: found.category_id || 'General',
                 subcategory: found.subcategory_id || '',
                 listing_type: found.listing_type || 'preowned',
