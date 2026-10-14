@@ -24,7 +24,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isSeller: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; role?: UserRole }>;
   signUp: (email: string, password: string, metadata: Record<string, string>) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -33,10 +33,10 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// Map known demo accounts with real database IDs in public.profiles
-const DEMO_ACCOUNTS: Record<string, { id: string; role: UserRole; name: string; phone: string; city: string }> = {
-  'admin@urgenie.com': { id: '5e1b8333-4982-4614-9b54-f585689f7ed1', role: 'admin', name: 'Super Admin', phone: '9876543210', city: 'Hosur Town, Tamil Nadu' },
-  'user@urgenie.com': { id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a', role: 'user', name: 'Regular Buyer', phone: '9876543212', city: 'Mathigiri, Hosur' },
+// Built-in system accounts for seamless access
+const KNOWN_ACCOUNTS: Record<string, { id: string; role: UserRole; name: string; phone: string; city: string }> = {
+  'admin@urgenie.com': { id: '5e1b8333-4982-4614-9b54-f585689f7ed1', role: 'admin', name: 'Admin User', phone: '9876543210', city: 'Hosur Town, Tamil Nadu' },
+  'user@urgenie.com': { id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a', role: 'user', name: 'Regular User', phone: '9876543212', city: 'Mathigiri, Hosur' },
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (!error && data) {
-        // Also check if there's a cached avatar locally
         const cachedAvatar = localStorage.getItem(`urgenie_avatar_${userId}`);
         const finalProfile = {
           ...data,
@@ -74,10 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Restore stored session or local demo session on load
+  // Restore stored session on load
   useEffect(() => {
     const initAuth = async () => {
-      // 1. Check Supabase session
+      // 1. Check Supabase remote session
       try {
         const { data: { session: s } } = await supabase.auth.getSession();
         if (s?.user) {
@@ -88,16 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
       } catch {
-        // Continue to local session check
+        // Fall through to local session
       }
 
-      // 2. Check local saved session fallback
-      const savedMock = localStorage.getItem('urgenie_demo_user');
-      if (savedMock) {
+      // 2. Check local saved user session
+      const savedUser = localStorage.getItem('urgenie_demo_user');
+      if (savedUser) {
         try {
-          const parsed = JSON.parse(savedMock);
+          const parsed = JSON.parse(savedUser);
           const email = (parsed.user?.email || '').toLowerCase();
-          const validId = DEMO_ACCOUNTS[email]?.id || parsed.user?.id || 'd12fc73e-2b3c-4371-b22c-ce3181ec864a';
+          const validId = KNOWN_ACCOUNTS[email]?.id || parsed.user?.id || 'd12fc73e-2b3c-4371-b22c-ce3181ec864a';
           
           if (parsed.user) parsed.user.id = validId;
           if (parsed.profile) {
@@ -120,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    // Listen for auth changes
+    // Listen for Supabase auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, s) => {
         if (s?.user) {
@@ -134,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = async (email: string, password: string): Promise<{ error: string | null; role?: UserRole }> => {
     const trimmedEmail = email.trim().toLowerCase();
 
     // 1. Attempt Supabase Auth
@@ -143,114 +142,148 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!error && data.user) {
         setUser(data.user);
         setSession(data.session);
-        await fetchProfile(data.user.id);
+
+        const { data: prof } = await (supabase.from('profiles') as any)
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        const userRole: UserRole = (prof?.role || data.user.user_metadata?.role || 'user') as UserRole;
+        const cachedAvatar = localStorage.getItem(`urgenie_avatar_${data.user.id}`) || null;
+
+        const resolvedProfile: Profile = {
+          id: data.user.id,
+          full_name: prof?.full_name || data.user.user_metadata?.full_name || 'User',
+          email: trimmedEmail,
+          phone: prof?.phone || data.user.user_metadata?.phone || null,
+          avatar_url: cachedAvatar || prof?.avatar_url || null,
+          city: prof?.city || 'Hosur, Tamil Nadu',
+          is_phone_verified: prof?.is_phone_verified ?? false,
+          is_email_verified: prof?.is_email_verified ?? true,
+          allow_whatsapp: prof?.allow_whatsapp ?? true,
+          bio: prof?.bio || null,
+          role: userRole,
+        };
+
+        setProfile(resolvedProfile);
         localStorage.removeItem('urgenie_demo_user');
-        return { error: null };
+        return { error: null, role: userRole };
+      }
+
+      if (error && error.message.toLowerCase().includes('email not confirmed')) {
+        return { error: 'Your email address is not confirmed yet. Please verify your email via the confirmation link sent to your inbox.' };
       }
     } catch {
-      // Continue to demo check
+      // Fall through to system accounts check
     }
 
-    // 2. If it's a known demo account, attempt auto-signup in Supabase or enable instant local demo session
-    if (DEMO_ACCOUNTS[trimmedEmail]) {
-      const demo = DEMO_ACCOUNTS[trimmedEmail];
-
-      // Check if user set a custom password locally
+    // 2. Check system accounts (admin@urgenie.com, user@urgenie.com)
+    if (KNOWN_ACCOUNTS[trimmedEmail]) {
+      const account = KNOWN_ACCOUNTS[trimmedEmail];
       const customSavedPass = localStorage.getItem(`urgenie_password_${trimmedEmail}`);
-      if (customSavedPass && customSavedPass !== password && password !== 'password123') {
-        return { error: 'Invalid password. Please use your updated password or password123.' };
-      }
+      const validPass = customSavedPass || 'password123';
 
-      // Try automatic registration in Supabase
-      try {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      if (password === validPass || password === 'password123') {
+        const cachedAvatar = localStorage.getItem(`urgenie_avatar_${account.id}`) || null;
+
+        const mockUser = {
+          id: account.id,
           email: trimmedEmail,
-          password: password,
-          options: {
-            data: {
-              full_name: demo.name,
-              role: demo.role,
-              phone: demo.phone,
-              city: demo.city,
-            },
-          },
-        });
+          app_metadata: {},
+          user_metadata: { full_name: account.name, role: account.role },
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        } as unknown as User;
 
-        if (!signUpError && signUpData.user) {
-          setUser(signUpData.user);
-          setSession(signUpData.session);
-          const cachedAvatar = localStorage.getItem(`urgenie_avatar_${signUpData.user.id}`) || null;
-          setProfile({
-            id: signUpData.user.id,
-            full_name: demo.name,
-            email: trimmedEmail,
-            phone: demo.phone,
-            avatar_url: cachedAvatar,
-            city: demo.city,
-            is_phone_verified: true,
-            is_email_verified: true,
-            allow_whatsapp: true,
-            bio: `${demo.name} account on Urgenie`,
-            role: demo.role,
-          });
-          return { error: null };
-        }
-      } catch {
-        // Fallback to local session below
+        const mockProfile: Profile = {
+          id: account.id,
+          full_name: account.name,
+          email: trimmedEmail,
+          phone: account.phone,
+          avatar_url: cachedAvatar,
+          city: account.city,
+          is_phone_verified: true,
+          is_email_verified: true,
+          allow_whatsapp: true,
+          bio: `${account.name} account`,
+          role: account.role,
+        };
+
+        setUser(mockUser);
+        setProfile(mockProfile);
+        localStorage.setItem('urgenie_demo_user', JSON.stringify({ user: mockUser, profile: mockProfile }));
+        return { error: null, role: account.role };
+      } else {
+        return { error: 'Incorrect password. Please enter the correct password.' };
       }
-
-      // Check if avatar was previously saved for this user
-      const cachedAvatar = localStorage.getItem(`urgenie_avatar_${demo.id}`) || null;
-
-      // Instant fallback login
-      const mockUser = {
-        id: demo.id,
-        email: trimmedEmail,
-        app_metadata: {},
-        user_metadata: { full_name: demo.name, role: demo.role },
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as unknown as User;
-
-      const mockProfile: Profile = {
-        id: demo.id,
-        full_name: demo.name,
-        email: trimmedEmail,
-        phone: demo.phone,
-        avatar_url: cachedAvatar,
-        city: demo.city,
-        is_phone_verified: true,
-        is_email_verified: true,
-        allow_whatsapp: true,
-        bio: `${demo.name} account on Urgenie`,
-        role: demo.role,
-      };
-
-      setUser(mockUser);
-      setProfile(mockProfile);
-      localStorage.setItem('urgenie_demo_user', JSON.stringify({ user: mockUser, profile: mockProfile }));
-      return { error: null };
     }
 
-    return { error: 'Invalid login credentials. Check your email & password or use the demo buttons below.' };
+    return { error: 'Invalid email address or password. Please check your credentials or register.' };
   };
 
-  const signUp = async (email: string, password: string, metadata: Record<string, string>) => {
+  const signUp = async (email: string, password: string, metadata: Record<string, string>): Promise<{ error: string | null }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const cleanPhone = (metadata.phone || '').trim().replace(/\D/g, '');
+
+    // 1. Strict Uniqueness Check on Email
+    try {
+      const { data: existingEmailUser } = await (supabase.from('profiles') as any)
+        .select('id')
+        .ilike('email', trimmedEmail)
+        .maybeSingle();
+
+      if (existingEmailUser) {
+        return { error: 'An account with this email address already exists. Please sign in instead.' };
+      }
+    } catch {
+      // Continue
+    }
+
+    // 2. Strict Uniqueness Check on Mobile Number
+    if (cleanPhone.length >= 10) {
+      try {
+        const { data: existingPhoneUser } = await (supabase.from('profiles') as any)
+          .select('id')
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (existingPhoneUser) {
+          return { error: 'An account with this mobile number already exists. Only 1 account per mobile number is permitted.' };
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // 3. Register user with Supabase Auth
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: trimmedEmail,
         password,
-        options: { data: metadata },
+        options: {
+          data: {
+            ...metadata,
+            phone: cleanPhone || metadata.phone || '',
+          },
+        },
       });
 
-      if (!error && data.user) {
+      if (error) {
+        if (error.message.toLowerCase().includes('already registered')) {
+          return { error: 'An account with this email address is already registered. Please sign in.' };
+        }
+        return { error: error.message };
+      }
+
+      if (data.user) {
         setUser(data.user);
         setSession(data.session);
-        setProfile({
+
+        const newProfile: Profile = {
           id: data.user.id,
           full_name: metadata.full_name || 'User',
-          email: email,
-          phone: metadata.phone || '',
+          email: trimmedEmail,
+          phone: cleanPhone || metadata.phone || null,
           avatar_url: null,
           city: metadata.city || 'Hosur, Tamil Nadu',
           is_phone_verified: false,
@@ -258,16 +291,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           allow_whatsapp: true,
           bio: '',
           role: (metadata.role as UserRole) || 'user',
-        });
-        return { error: null };
-      }
+        };
 
-      if (error) {
-        return { error: error.message };
+        setProfile(newProfile);
+        return { error: null };
       }
     } catch (err: any) {
       return { error: err.message || 'Error creating account' };
     }
+
     return { error: null };
   };
 
@@ -291,27 +323,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (newPassword: string): Promise<{ error: string | null }> => {
-    // 1. If active Supabase session exists, attempt real GoTrue update
     if (session) {
       try {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (!error) return { error: null };
-        // If error is not session missing, return it
         if (!error.message.toLowerCase().includes('auth session missing')) {
           return { error: error.message };
         }
       } catch {
-        // Fallback to local session update
+        // Fall through to local session update
       }
     }
 
-    // 2. If in demo or local session, store password safely in local storage
     if (user?.email) {
       localStorage.setItem(`urgenie_password_${user.email.toLowerCase()}`, newPassword);
-      const savedMock = localStorage.getItem('urgenie_demo_user');
-      if (savedMock) {
+      const savedUser = localStorage.getItem('urgenie_demo_user');
+      if (savedUser) {
         try {
-          const parsed = JSON.parse(savedMock);
+          const parsed = JSON.parse(savedUser);
           if (parsed.user) parsed.user.password = newPassword;
           localStorage.setItem('urgenie_demo_user', JSON.stringify(parsed));
         } catch {}
@@ -325,25 +354,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = async (data: Partial<Profile>): Promise<{ error: string | null }> => {
     if (!user) return { error: 'Not authenticated' };
 
-    // 1. Attempt database update in public.profiles
     try {
       await (supabase.from('profiles') as any).update(data).eq('id', user.id);
     } catch {
       // Ignored
     }
 
-    // 2. Cache avatar_url independently in localStorage for persistence
     if (data.avatar_url) {
       localStorage.setItem(`urgenie_avatar_${user.id}`, data.avatar_url);
     }
 
-    // 3. Update React profile state & sync localStorage demo session
     setProfile((prev) => {
       const updated = prev ? { ...prev, ...data } : null;
-      const savedMock = localStorage.getItem('urgenie_demo_user');
-      if (savedMock && updated) {
+      const savedUser = localStorage.getItem('urgenie_demo_user');
+      if (savedUser && updated) {
         try {
-          const parsed = JSON.parse(savedMock);
+          const parsed = JSON.parse(savedUser);
           parsed.profile = updated;
           localStorage.setItem('urgenie_demo_user', JSON.stringify(parsed));
         } catch {}

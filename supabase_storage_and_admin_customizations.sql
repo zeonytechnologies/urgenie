@@ -73,3 +73,11 @@ CREATE POLICY "Profiles: allow updates"
   ON public.profiles FOR UPDATE
   USING (true)
   WITH CHECK (true);
+
+-- 6. Enforce Unique Email and Mobile Number (1 account per email, 1 account per phone number)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_unique_email ON public.profiles (LOWER(email)) WHERE email IS NOT NULL AND email <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_unique_phone ON public.profiles (phone) WHERE phone IS NOT NULL AND phone <> '';
+
+-- 7. Auto-confirm all users in Supabase Auth (ensures instant login without email confirmation block)
+UPDATE auth.users SET email_confirmed_at = NOW() WHERE email_confirmed_at IS NULL;
+
