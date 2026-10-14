@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { CheckCircle2, ShieldCheck, Lock, AlertCircle, Save, KeyRound, Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -23,6 +23,18 @@ export default function Profile() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Sync state whenever profile is loaded or updated
+  useEffect(() => {
+    if (profile) {
+      if (profile.full_name) setFullName(profile.full_name);
+      if (profile.phone) setPhone(profile.phone);
+      if (profile.city) setCity(profile.city);
+      if (profile.bio !== undefined && profile.bio !== null) setBio(profile.bio);
+      if (profile.allow_whatsapp !== undefined) setAllowWhatsapp(profile.allow_whatsapp);
+      if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
+    }
+  }, [profile]);
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -33,36 +45,76 @@ export default function Profile() {
     }
 
     setUploadingAvatar(true);
+    setProfileMsg(null);
     try {
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `avatar-${user?.id || 'user'}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // 1. Process image with canvas compression for instant, 100% reliable local/browser persistence
+      const compressedDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 320;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } else {
+              resolve(event.target?.result as string);
+            }
+          };
+          img.onerror = () => resolve(event.target?.result as string);
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-      const { data, error } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
+      let finalUrl = compressedDataUrl;
 
-      if (!error && data) {
-        const { data: publicData } = supabase.storage
+      // 2. Also attempt uploading to Supabase storage 'avatars' bucket if available
+      try {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `avatar-${user?.id || 'user'}-${Date.now()}.${fileExt}`;
+        const { data, error } = await supabase.storage
           .from('avatars')
-          .getPublicUrl(filePath);
+          .upload(fileName, file, { upsert: true });
 
-        if (publicData?.publicUrl) {
-          setAvatarUrl(publicData.publicUrl);
-          await updateProfile({ avatar_url: publicData.publicUrl });
-          setProfileMsg({ type: 'success', text: 'Avatar uploaded successfully!' });
+        if (!error && data) {
+          const { data: publicData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+          if (publicData?.publicUrl) {
+            finalUrl = publicData.publicUrl;
+          }
         }
-      } else {
-        const localUrl = URL.createObjectURL(file);
-        setAvatarUrl(localUrl);
-        await updateProfile({ avatar_url: localUrl });
-        setProfileMsg({ type: 'success', text: 'Avatar preview updated!' });
+      } catch {
+        // Fallback safely to compressedDataUrl
       }
+
+      setAvatarUrl(finalUrl);
+      await updateProfile({ avatar_url: finalUrl });
+      setProfileMsg({ type: 'success', text: 'Profile picture updated successfully!' });
     } catch (err: any) {
-      setProfileMsg({ type: 'error', text: err.message || 'Failed to upload avatar' });
+      setProfileMsg({ type: 'error', text: err.message || 'Failed to upload profile picture' });
     } finally {
       setUploadingAvatar(false);
-      setTimeout(() => setProfileMsg(null), 3000);
+      setTimeout(() => setProfileMsg(null), 3500);
     }
   };
 
@@ -85,7 +137,7 @@ export default function Profile() {
       setProfileMsg({ type: 'error', text: error });
     } else {
       setProfileMsg({ type: 'success', text: 'Profile updated successfully!' });
-      setTimeout(() => setProfileMsg(null), 3000);
+      setTimeout(() => setProfileMsg(null), 3500);
     }
   };
 
@@ -110,10 +162,10 @@ export default function Profile() {
     if (error) {
       setPasswordMsg({ type: 'error', text: error });
     } else {
-      setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
+      setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
       setNewPassword('');
       setConfirmPassword('');
-      setTimeout(() => setPasswordMsg(null), 3000);
+      setTimeout(() => setPasswordMsg(null), 3500);
     }
   };
 

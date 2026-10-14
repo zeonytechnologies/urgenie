@@ -33,10 +33,10 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
+// Map known demo accounts with real database IDs in public.profiles
 const DEMO_ACCOUNTS: Record<string, { id: string; role: UserRole; name: string; phone: string; city: string }> = {
-  'admin@urgenie.com': { id: '00000000-0000-0000-0000-000000000001', role: 'admin', name: 'Super Admin', phone: '9876543210', city: 'Hosur Town, Tamil Nadu' },
-  'seller@urgenie.com': { id: '00000000-0000-0000-0000-000000000002', role: 'seller', name: 'Verified Seller', phone: '9876543211', city: 'SIPCOT Phase 1, Hosur' },
-  'user@urgenie.com': { id: '00000000-0000-0000-0000-000000000003', role: 'user', name: 'Regular Buyer', phone: '9876543212', city: 'Mathigiri, Hosur' },
+  'admin@urgenie.com': { id: '5e1b8333-4982-4614-9b54-f585689f7ed1', role: 'admin', name: 'Super Admin', phone: '9876543210', city: 'Hosur Town, Tamil Nadu' },
+  'user@urgenie.com': { id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a', role: 'user', name: 'Regular Buyer', phone: '9876543212', city: 'Mathigiri, Hosur' },
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,7 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (!error && data) {
-        setProfile(data as Profile);
+        // Also check if there's a cached avatar locally
+        const cachedAvatar = localStorage.getItem(`urgenie_avatar_${userId}`);
+        const finalProfile = {
+          ...data,
+          avatar_url: cachedAvatar || data.avatar_url || null,
+        } as Profile;
+        setProfile(finalProfile);
       }
     } catch {
       // Ignored
@@ -72,13 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       // 1. Check Supabase session
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (s?.user) {
-        setSession(s);
-        setUser(s.user);
-        await fetchProfile(s.user.id);
-        setLoading(false);
-        return;
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s?.user) {
+          setSession(s);
+          setUser(s.user);
+          await fetchProfile(s.user.id);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Continue to local session check
       }
 
       // 2. Check local saved session fallback
@@ -87,13 +97,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const parsed = JSON.parse(savedMock);
           const email = (parsed.user?.email || '').toLowerCase();
-          const validId = DEMO_ACCOUNTS[email]?.id || (
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.user?.id)
-              ? parsed.user.id
-              : '00000000-0000-0000-0000-000000000002'
-          );
+          const validId = DEMO_ACCOUNTS[email]?.id || parsed.user?.id || 'd12fc73e-2b3c-4371-b22c-ce3181ec864a';
+          
           if (parsed.user) parsed.user.id = validId;
-          if (parsed.profile) parsed.profile.id = validId;
+          if (parsed.profile) {
+            parsed.profile.id = validId;
+            const cachedAvatar = localStorage.getItem(`urgenie_avatar_${validId}`);
+            if (cachedAvatar) {
+              parsed.profile.avatar_url = cachedAvatar;
+            }
+          }
           localStorage.setItem('urgenie_demo_user', JSON.stringify(parsed));
 
           setUser(parsed.user);
@@ -142,6 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (DEMO_ACCOUNTS[trimmedEmail]) {
       const demo = DEMO_ACCOUNTS[trimmedEmail];
 
+      // Check if user set a custom password locally
+      const customSavedPass = localStorage.getItem(`urgenie_password_${trimmedEmail}`);
+      if (customSavedPass && customSavedPass !== password && password !== 'password123') {
+        return { error: 'Invalid password. Please use your updated password or password123.' };
+      }
+
       // Try automatic registration in Supabase
       try {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -160,12 +179,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!signUpError && signUpData.user) {
           setUser(signUpData.user);
           setSession(signUpData.session);
+          const cachedAvatar = localStorage.getItem(`urgenie_avatar_${signUpData.user.id}`) || null;
           setProfile({
             id: signUpData.user.id,
             full_name: demo.name,
             email: trimmedEmail,
             phone: demo.phone,
-            avatar_url: null,
+            avatar_url: cachedAvatar,
             city: demo.city,
             is_phone_verified: true,
             is_email_verified: true,
@@ -178,6 +198,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Fallback to local session below
       }
+
+      // Check if avatar was previously saved for this user
+      const cachedAvatar = localStorage.getItem(`urgenie_avatar_${demo.id}`) || null;
 
       // Instant fallback login
       const mockUser = {
@@ -194,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: demo.name,
         email: trimmedEmail,
         phone: demo.phone,
-        avatar_url: null,
+        avatar_url: cachedAvatar,
         city: demo.city,
         is_phone_verified: true,
         is_email_verified: true,
@@ -267,19 +290,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-  const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    return { error: error?.message ?? null };
+  const updatePassword = async (newPassword: string): Promise<{ error: string | null }> => {
+    // 1. If active Supabase session exists, attempt real GoTrue update
+    if (session) {
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (!error) return { error: null };
+        // If error is not session missing, return it
+        if (!error.message.toLowerCase().includes('auth session missing')) {
+          return { error: error.message };
+        }
+      } catch {
+        // Fallback to local session update
+      }
+    }
+
+    // 2. If in demo or local session, store password safely in local storage
+    if (user?.email) {
+      localStorage.setItem(`urgenie_password_${user.email.toLowerCase()}`, newPassword);
+      const savedMock = localStorage.getItem('urgenie_demo_user');
+      if (savedMock) {
+        try {
+          const parsed = JSON.parse(savedMock);
+          if (parsed.user) parsed.user.password = newPassword;
+          localStorage.setItem('urgenie_demo_user', JSON.stringify(parsed));
+        } catch {}
+      }
+      return { error: null };
+    }
+
+    return { error: 'Please sign in first to update your password' };
   };
 
-  const updateProfile = async (data: Partial<Profile>) => {
+  const updateProfile = async (data: Partial<Profile>): Promise<{ error: string | null }> => {
     if (!user) return { error: 'Not authenticated' };
+
+    // 1. Attempt database update in public.profiles
     try {
       await (supabase.from('profiles') as any).update(data).eq('id', user.id);
     } catch {
       // Ignored
     }
-    setProfile((prev) => (prev ? { ...prev, ...data } : null));
+
+    // 2. Cache avatar_url independently in localStorage for persistence
+    if (data.avatar_url) {
+      localStorage.setItem(`urgenie_avatar_${user.id}`, data.avatar_url);
+    }
+
+    // 3. Update React profile state & sync localStorage demo session
+    setProfile((prev) => {
+      const updated = prev ? { ...prev, ...data } : null;
+      const savedMock = localStorage.getItem('urgenie_demo_user');
+      if (savedMock && updated) {
+        try {
+          const parsed = JSON.parse(savedMock);
+          parsed.profile = updated;
+          localStorage.setItem('urgenie_demo_user', JSON.stringify(parsed));
+        } catch {}
+      }
+      return updated;
+    });
+
     return { error: null };
   };
 

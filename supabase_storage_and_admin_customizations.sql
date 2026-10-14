@@ -39,6 +39,11 @@ CREATE POLICY "Allow Uploads to avatars"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "Allow Updates to avatars" ON storage.objects;
+CREATE POLICY "Allow Updates to avatars"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'avatars');
+
 -- 3. Ensure Table Schemas & Columns for Custom Categories and Locations
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
@@ -60,3 +65,11 @@ CREATE POLICY "Allow public read on locations" ON public.locations FOR SELECT US
 
 DROP POLICY IF EXISTS "Allow admin modify locations" ON public.locations;
 CREATE POLICY "Allow admin modify locations" ON public.locations FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Enable Permissive Profile Updates
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Profiles: allow updates" ON public.profiles;
+CREATE POLICY "Profiles: allow updates"
+  ON public.profiles FOR UPDATE
+  USING (true)
+  WITH CHECK (true);

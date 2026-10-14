@@ -149,8 +149,12 @@ export default function Navbar() {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-2.5 p-1.5 pr-2.5 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
                 >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-sm ring-2 ring-white">
-                    {userInitial}
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-sm ring-2 ring-white overflow-hidden flex-shrink-0">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.full_name || 'User'} className="w-full h-full object-cover" />
+                    ) : (
+                      userInitial
+                    )}
                   </div>
                   <div className="text-left hidden xl:block">
                     <div className="text-xs font-black text-slate-900 truncate max-w-[110px]">
