@@ -359,7 +359,7 @@ export default function PostAd() {
             <span className="text-slate-300">|</span>
             <button
               type="button"
-              onClick={() => handleQuickDemoLogin('seller@urgenie.com')}
+              onClick={() => handleQuickDemoLogin('user@urgenie.com')}
               className="text-xs font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200 transition-colors cursor-pointer"
             >
               1-Click Demo Login
@@ -386,10 +386,10 @@ export default function PostAd() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
-              onClick={() => handleQuickDemoLogin('seller@urgenie.com')}
+              onClick={() => handleQuickDemoLogin('user@urgenie.com')}
               className="btn btn-primary text-xs py-2 px-3 shadow-xs whitespace-nowrap font-extrabold"
             >
-              Sign In (Demo Seller)
+              Sign In (Demo User)
             </button>
             <Link to="/login?redirect=/post-ad" className="btn btn-outline text-xs py-2 px-3 bg-white whitespace-nowrap font-bold">
               Sign In / Register
@@ -1129,7 +1129,7 @@ export default function PostAd() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleQuickDemoLogin('seller@urgenie.com')}
+                      onClick={() => handleQuickDemoLogin('user@urgenie.com')}
                       className="btn btn-primary text-xs py-1.5 px-3 whitespace-nowrap shadow-sm"
                     >
                       Instant Demo Sign In
