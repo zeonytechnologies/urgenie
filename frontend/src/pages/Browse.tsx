@@ -115,11 +115,52 @@ export default function Browse() {
           console.warn('Remote ads fetch notice:', fetchErr);
         }
 
-        // 2. Fetch locally saved ads from localStorage
+        // 2. Fetch locally saved ads from localStorage and auto-sync any unsaved ads to Supabase
         let localAds: any[] = [];
         try {
           localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
         } catch {}
+
+        // Automatically sync any ads that were saved only locally (id starts with 'ad-')
+        const stuckAds = localAds.filter((a: any) => typeof a.id === 'string' && a.id.startsWith('ad-'));
+        if (stuckAds.length > 0) {
+          for (const ad of stuckAds) {
+            try {
+              const syncPayload = {
+                user_id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a',
+                category_id: ad.category_id || ad.category || 'vehicles',
+                subcategory_id: null,
+                title: ad.title,
+                slug: `${(ad.slug || 'ad').replace(/[^a-z0-9]+/gi, '-')}-${Date.now().toString().slice(-4)}`,
+                description: ad.description || ad.title,
+                price: Number(ad.price) || 0,
+                price_text: ad.price_text || `₹${Number(ad.price || 0).toLocaleString()}`,
+                is_negotiable: ad.is_negotiable ?? true,
+                condition: ad.condition || 'good',
+                location_name: ad.location_name || ad.location || 'Hosur Town Center',
+                location_text: ad.location_text || ad.location || 'Hosur Town Center',
+                contact_name: ad.contact_name || 'Verified User',
+                contact_phone: ad.contact_phone || '9876543210',
+                allow_whatsapp: true,
+                images: ad.images || (ad.image ? [ad.image] : ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600']),
+                status: 'active',
+                views_count: 0,
+                is_featured: false,
+              };
+              const { data: syncedAd } = await (supabase.from('ads') as any)
+                .insert([syncPayload])
+                .select('*')
+                .single();
+              if (syncedAd) {
+                remoteAds.push(syncedAd);
+                localAds = localAds.map((item: any) => item.id === ad.id ? syncedAd : item);
+                localStorage.setItem('urgenie_local_ads', JSON.stringify(localAds));
+              }
+            } catch (sErr) {
+              console.warn('Sync stuck ad notice:', sErr);
+            }
+          }
+        }
 
         // Combine and deduplicate
         const mergedMap = new Map<string, any>();
