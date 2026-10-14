@@ -370,7 +370,7 @@ export default function PostAd() {
             slug: generatedSlug,
             description: fullDescription,
             price: selectedListingType === 'free' ? 0 : parseFloat(price) || 0,
-            price_text: selectedListingType === 'free' ? 'Free' : `₹${price}`,
+            price_text: newAdData.price_text,
             is_negotiable: isNegotiable,
             condition: condition,
             location_name: location,

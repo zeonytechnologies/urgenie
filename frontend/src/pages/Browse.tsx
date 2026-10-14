@@ -3,7 +3,7 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, Sparkles } from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
-import { CATEGORIES, LISTING_TYPES } from '../data/categories';
+import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES } from '../data/categories';
 
 interface AdDisplayItem {
   id: string;
@@ -68,6 +68,11 @@ export default function Browse() {
   ]);
   const [loading, setLoading] = useState(true);
 
+  // Scroll to top when pagination page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
   // Sync params on change
   useEffect(() => {
     if (paramCategory && !selectedCategories.includes(paramCategory)) {
@@ -93,16 +98,18 @@ export default function Browse() {
     const fetchBrowseData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch real ads from Supabase
+        // 1. Fetch real ads from Supabase with safe select('*')
         let remoteAds: any[] = [];
         try {
           const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
-            .select('id, title, price, location_name, location_text, category_id, subcategory_id, listing_type, condition, images, created_at')
-            .eq('status', 'active')
+            .select('*')
             .order('created_at', { ascending: false });
 
-          if (!adsError && adsData) {
-            remoteAds = adsData;
+          if (!adsError && Array.isArray(adsData)) {
+            // Keep all active or unflagged ads, only filter out explicitly deleted
+            remoteAds = adsData.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
+          } else if (adsError) {
+            console.warn('Remote ads fetch notice:', adsError);
           }
         } catch (fetchErr) {
           console.warn('Remote ads fetch notice:', fetchErr);
@@ -128,44 +135,72 @@ export default function Browse() {
         });
 
         const combinedList = Array.from(mergedMap.values());
-        const mapped: AdDisplayItem[] = combinedList.map((item: any) => ({
-          id: item.id || item.slug,
-          title: item.title,
-          price: item.listing_type === 'free'
-            ? 'FREE'
-            : item.price_text
-            ? item.price_text
-            : item.listing_type === 'rent'
-            ? `₹${Number(item.price || 0).toLocaleString()} / ${(item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
-            : `₹${Number(item.price || 0).toLocaleString()}`,
-          priceNum: Number(item.price) || 0,
-          category: item.category_id || 'General',
-          subcategory: item.subcategory_id || undefined,
-          listingType: item.listing_type || 'preowned',
-          location: item.location_name || item.location_text || 'Hosur',
-          condition: item.condition || 'good',
-          image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-          postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-        }));
+        const mapped: AdDisplayItem[] = combinedList.map((item: any) => {
+          // Infer listing type if not directly stored as a column
+          let lType = (item.listing_type || '').toLowerCase();
+          if (!lType && item.description) {
+            if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month|rent term/i.test(item.description) || (item.price_text && item.price_text.includes('/'))) {
+              lType = 'rent';
+            } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
+              lType = 'new';
+            } else if (/Listing Type:\s*Job/i.test(item.description) || item.category_id === 'jobs') {
+              lType = 'job';
+            } else if (/Listing Type:\s*Service/i.test(item.description) || item.category_id === 'services') {
+              lType = 'service';
+            } else {
+              lType = 'preowned';
+            }
+          }
+          if (!lType) lType = 'preowned';
+
+          const priceVal = Number(item.price || 0);
+          let formattedPrice = `₹${priceVal.toLocaleString()}`;
+          if (lType === 'free') {
+            formattedPrice = 'FREE';
+          } else if (item.price_text) {
+            formattedPrice = item.price_text;
+          } else if (lType === 'rent') {
+            const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
+            formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+          }
+
+          return {
+            id: item.id || item.slug,
+            title: item.title,
+            price: formattedPrice,
+            priceNum: priceVal,
+            category: item.category_id || 'General',
+            subcategory: item.subcategory_id || undefined,
+            listingType: lType,
+            location: item.location_name || item.location_text || 'Hosur',
+            condition: item.condition || 'good',
+            image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+            postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+          };
+        });
         setDbAds(mapped);
 
         // 2. Fetch categories
-        const { data: catData } = await (supabase.from('categories') as any)
-          .select('id, name')
-          .order('sort_order', { ascending: true });
+        try {
+          const { data: catData } = await (supabase.from('categories') as any)
+            .select('id, name')
+            .order('sort_order', { ascending: true });
 
-        if (catData && catData.length > 0) {
-          setCategoriesList(catData);
-        }
+          if (catData && catData.length > 0) {
+            setCategoriesList(catData);
+          }
+        } catch {}
 
         // 3. Fetch locations
-        const { data: locData } = await (supabase.from('locations') as any)
-          .select('name')
-          .order('name', { ascending: true });
+        try {
+          const { data: locData } = await (supabase.from('locations') as any)
+            .select('name')
+            .order('name', { ascending: true });
 
-        if (locData && locData.length > 0) {
-          setLocationsList(locData.map((l: any) => l.name));
-        }
+          if (locData && locData.length > 0) {
+            setLocationsList(locData.map((l: any) => l.name));
+          }
+        } catch {}
       } catch (err) {
         console.error('Error fetching browse data:', err);
       } finally {
@@ -194,12 +229,19 @@ export default function Browse() {
         if (adType !== selectedListingType.toLowerCase()) return false;
       }
 
-      // Categories
+      // Categories (matches ID, slug, and name accurately)
       if (selectedCategories.length > 0) {
         const matchCategory = selectedCategories.some((cat) => {
-          const c = cat.toLowerCase();
-          const ac = (ad.category || '').toLowerCase();
-          return ac.includes(c) || c.includes(ac);
+          const rawCat = cat.toLowerCase();
+          const foundCat = CLASSIFIEDS_CATEGORIES.find(
+            (c) => c.id.toLowerCase() === rawCat || c.slug.toLowerCase() === rawCat || c.name.toLowerCase() === rawCat
+          );
+          const candidateKeys = [rawCat];
+          if (foundCat) {
+            candidateKeys.push(foundCat.id.toLowerCase(), foundCat.slug.toLowerCase());
+          }
+          const adCat = (ad.category || '').toLowerCase();
+          return candidateKeys.some((k) => adCat === k || adCat.includes(k) || k.includes(adCat));
         });
         if (!matchCategory) return false;
       }

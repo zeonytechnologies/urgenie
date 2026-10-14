@@ -80,13 +80,16 @@ export default function Home() {
         // 1. Fetch real ads from Supabase & local storage
         let remoteAds = [];
         try {
-          const { data: adsData } = await (supabase.from('ads') as any)
-            .select('id, title, price, location_name, location_text, category_id, listing_type, images, created_at')
-            .eq('status', 'active')
+          const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
+            .select('*')
             .order('created_at', { ascending: false })
-            .limit(12);
-          if (adsData) remoteAds = adsData;
-        } catch (e) {}
+            .limit(20);
+          if (!adsError && Array.isArray(adsData)) {
+            remoteAds = adsData.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
+          }
+        } catch (e) {
+          console.warn('Home ads fetch notice:', e);
+        }
 
         let localAds = [];
         try {
@@ -103,22 +106,43 @@ export default function Home() {
 
         const combinedList = Array.from(mergedMap.values());
         if (combinedList.length > 0) {
-          const mappedAds: AdItem[] = combinedList.slice(0, 8).map((item: any) => ({
-            id: item.id || item.slug,
-            title: item.title,
-            price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
-            location: item.location_name || item.location_text || 'Hosur',
-            image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-            category: item.category_id || 'General',
-            postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-          }));
+          const mappedAds: AdItem[] = combinedList.slice(0, 8).map((item: any) => {
+            let lType = (item.listing_type || '').toLowerCase();
+            if (!lType && item.description) {
+              if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month/i.test(item.description)) {
+                lType = 'rent';
+              } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
+                lType = 'new';
+              }
+            }
+            const priceVal = Number(item.price || 0);
+            let displayPrice = `₹${priceVal.toLocaleString()}`;
+            if (lType === 'free') {
+              displayPrice = 'FREE';
+            } else if (item.price_text) {
+              displayPrice = item.price_text;
+            } else if (lType === 'rent') {
+              const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
+              displayPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+            }
+
+            return {
+              id: item.id || item.slug,
+              title: item.title,
+              price: displayPrice,
+              location: item.location_name || item.location_text || 'Hosur',
+              image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+              category: item.category_id || 'General',
+              postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+            };
+          });
           setLatestAds(mappedAds);
         }
 
         // 2. Fetch categories and calculate live counts across all listings
         const { data: allAdsCount } = await (supabase.from('ads') as any)
           .select('category_id')
-          .eq('status', 'active');
+          .neq('status', 'deleted');
 
         const { data: catData } = await (supabase.from('categories') as any)
           .select('*')

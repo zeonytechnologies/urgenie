@@ -41,33 +41,67 @@ export default function AdDetails() {
       setLoading(true);
       try {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
-        const query = (supabase.from('ads') as any).select('*, profiles:user_id(full_name, phone, city, role, is_phone_verified)');
+        const query = (supabase.from('ads') as any).select('*');
         const { data, error } = isUuid 
           ? await query.or(`id.eq.${slug},slug.eq.${slug}`).maybeSingle()
           : await query.eq('slug', slug).maybeSingle();
 
         if (!error && data) {
+          let sellerProfile: any = null;
+          if (data.user_id) {
+            try {
+              const { data: pData } = await (supabase.from('profiles') as any)
+                .select('full_name, phone, city, role, is_phone_verified')
+                .eq('id', data.user_id)
+                .maybeSingle();
+              sellerProfile = pData;
+            } catch (pErr) {
+              // Profiles lookup optional
+            }
+          }
+
+          let lType = (data.listing_type || '').toLowerCase();
+          if (!lType && data.description) {
+            if (/Listing Type:\s*Rent/i.test(data.description) || (data.price_text && data.price_text.includes('/'))) {
+              lType = 'rent';
+            } else if (/Listing Type:\s*Sell New/i.test(data.description)) {
+              lType = 'new';
+            } else if (/Listing Type:\s*Job/i.test(data.description) || data.category_id === 'jobs') {
+              lType = 'job';
+            } else if (/Listing Type:\s*Service/i.test(data.description) || data.category_id === 'services') {
+              lType = 'service';
+            } else {
+              lType = 'preowned';
+            }
+          }
+          if (!lType) lType = 'preowned';
+
+          const priceVal = Number(data.price || 0);
+          let formattedPrice = `₹${priceVal.toLocaleString()}`;
+          if (lType === 'free') {
+            formattedPrice = 'FREE';
+          } else if (data.price_text) {
+            formattedPrice = data.price_text;
+          } else if (lType === 'rent') {
+            const period = (data.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
+            formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+          }
+
           setAd({
             id: data.id,
             title: data.title,
-            price: data.listing_type === 'free' 
-              ? 'FREE' 
-              : data.price_text 
-              ? data.price_text 
-              : data.listing_type === 'rent'
-              ? `₹${Number(data.price || 0).toLocaleString()} / ${(data.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
-              : `₹${Number(data.price || 0).toLocaleString()}`,
+            price: formattedPrice,
             category: data.category_id || 'General',
             subcategory: data.subcategory_id || '',
-            listing_type: data.listing_type || 'preowned',
+            listing_type: lType,
             attributes: data.attributes || {},
-            location: data.location_name || data.city || 'Hosur',
-            postedAt: new Date(data.created_at).toLocaleDateString(),
+            location: data.location_name || data.location_text || data.city || 'Hosur',
+            postedAt: data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Recently',
             image: data.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
             description: data.description,
             condition: data.condition || 'Used - Good',
-            seller: data.contact_name || data.profiles?.full_name || 'Verified Seller',
-            phone: data.contact_phone || data.profiles?.phone || '9876543210',
+            seller: data.contact_name || sellerProfile?.full_name || 'Verified Seller',
+            phone: data.contact_phone || sellerProfile?.phone || '9876543210',
             allow_whatsapp: data.allow_whatsapp !== false,
             user_id: data.user_id,
             views_count: data.views_count || 1,
