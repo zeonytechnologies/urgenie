@@ -77,22 +77,40 @@ export default function Home() {
     const fetchHomeData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch real ads from Supabase
-        const { data: adsData } = await (supabase.from('ads') as any)
-          .select('id, title, price, location_name, location_text, category_id, images, created_at')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(8);
+        // 1. Fetch real ads from Supabase & local storage
+        let remoteAds = [];
+        try {
+          const { data: adsData } = await (supabase.from('ads') as any)
+            .select('id, title, price, location_name, location_text, category_id, listing_type, images, created_at')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(12);
+          if (adsData) remoteAds = adsData;
+        } catch (e) {}
 
-        if (adsData && adsData.length > 0) {
-          const mappedAds: AdItem[] = adsData.map((item: any) => ({
-            id: item.id,
+        let localAds = [];
+        try {
+          localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
+        } catch (e) {}
+
+        const mergedMap = new Map();
+        localAds.forEach((ad: any) => {
+          if (ad && (ad.id || ad.slug)) mergedMap.set(ad.id || ad.slug, ad);
+        });
+        remoteAds.forEach((ad: any) => {
+          if (ad && (ad.id || ad.slug)) mergedMap.set(ad.id || ad.slug, ad);
+        });
+
+        const combinedList = Array.from(mergedMap.values());
+        if (combinedList.length > 0) {
+          const mappedAds: AdItem[] = combinedList.slice(0, 8).map((item: any) => ({
+            id: item.id || item.slug,
             title: item.title,
-            price: `₹${Number(item.price).toLocaleString()}`,
+            price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
             location: item.location_name || item.location_text || 'Hosur',
             image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
             category: item.category_id || 'General',
-            postedAt: new Date(item.created_at).toLocaleDateString(),
+            postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
           }));
           setLatestAds(mappedAds);
         }

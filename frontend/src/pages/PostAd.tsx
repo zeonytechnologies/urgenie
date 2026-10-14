@@ -343,19 +343,76 @@ export default function PostAd() {
         is_featured: false,
       };
 
-      const { data, error: insertError } = await (supabase.from('ads') as any)
-        .insert([newAdData])
-        .select('id, slug')
-        .single();
+      let publishedAd: any = null;
+      let finalSlugOrId = generatedSlug;
 
-      if (insertError) {
-        // Fallback for demo mock session if supabase RLS denies
-        const localAdId = `ad-local-${Date.now()}`;
-        setCreatedAdId(localAdId);
-      } else if (data) {
-        setCreatedAdId(data.slug || data.id);
+      try {
+        const { data, error: insertError } = await (supabase.from('ads') as any)
+          .insert([newAdData])
+          .select('*')
+          .single();
+
+        if (!insertError && data) {
+          publishedAd = data;
+          finalSlugOrId = data.slug || data.id;
+        } else if (insertError) {
+          console.warn('Full ad insert notice, attempting fallback insert:', insertError.message);
+          // Retry with baseline columns in case custom columns (e.g. subcategory_id) are not yet migrated in Supabase
+          const baseAdData = {
+            user_id: targetUserId,
+            category_id: selectedCategory,
+            title: title.trim(),
+            slug: generatedSlug,
+            description: fullDescription,
+            price: selectedListingType === 'free' ? 0 : parseFloat(price) || 0,
+            price_text: selectedListingType === 'free' ? 'Free' : `₹${price}`,
+            is_negotiable: isNegotiable,
+            condition: condition,
+            location_name: location,
+            location_text: location,
+            contact_name: sellerName.trim() || profile?.full_name || 'Verified User',
+            contact_phone: phone.trim() || profile?.phone || '',
+            allow_whatsapp: allowWhatsapp,
+            images: imageUrl ? [imageUrl] : ['https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500'],
+            status: 'active',
+            views_count: 0,
+            is_featured: false,
+          };
+          const { data: retryData, error: retryErr } = await (supabase.from('ads') as any)
+            .insert([baseAdData])
+            .select('*')
+            .single();
+
+          if (!retryErr && retryData) {
+            publishedAd = { ...retryData, ...newAdData };
+            finalSlugOrId = retryData.slug || retryData.id;
+          } else if (retryErr) {
+            console.error('Database insert error:', retryErr.message);
+          }
+        }
+      } catch (dbErr: any) {
+        console.error('Supabase connection error:', dbErr);
       }
 
+      // If DB insert didn't return an object, construct the local ad object
+      if (!publishedAd) {
+        publishedAd = {
+          id: `ad-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          ...newAdData,
+          created_at: new Date().toISOString(),
+        };
+      }
+
+      // ALWAYS save to urgenie_local_ads so user's ad is NEVER lost on page refresh!
+      try {
+        const stored = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
+        const filtered = stored.filter((a: any) => a.id !== publishedAd.id && a.slug !== publishedAd.slug);
+        localStorage.setItem('urgenie_local_ads', JSON.stringify([publishedAd, ...filtered]));
+      } catch (storageErr) {
+        console.warn('LocalStorage save warning:', storageErr);
+      }
+
+      setCreatedAdId(finalSlugOrId);
       setStep(5); // Success step
     } catch (err: any) {
       setError(err.message || 'Failed to publish advertisement. Please try again.');

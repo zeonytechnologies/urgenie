@@ -93,28 +93,55 @@ export default function Browse() {
     const fetchBrowseData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch real ads
-        const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
-          .select('id, title, price, location_name, location_text, category_id, subcategory_id, listing_type, condition, images, created_at')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
+        // 1. Fetch real ads from Supabase
+        let remoteAds: any[] = [];
+        try {
+          const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
+            .select('id, title, price, location_name, location_text, category_id, subcategory_id, listing_type, condition, images, created_at')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
 
-        if (!adsError && adsData) {
-          const mapped: AdDisplayItem[] = adsData.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
-            priceNum: Number(item.price) || 0,
-            category: item.category_id || 'General',
-            subcategory: item.subcategory_id || undefined,
-            listingType: item.listing_type || 'preowned',
-            location: item.location_name || item.location_text || 'Hosur',
-            condition: item.condition || 'good',
-            image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-            postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-          }));
-          setDbAds(mapped);
+          if (!adsError && adsData) {
+            remoteAds = adsData;
+          }
+        } catch (fetchErr) {
+          console.warn('Remote ads fetch notice:', fetchErr);
         }
+
+        // 2. Fetch locally saved ads from localStorage
+        let localAds: any[] = [];
+        try {
+          localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
+        } catch {}
+
+        // Combine and deduplicate
+        const mergedMap = new Map<string, any>();
+        localAds.forEach((ad: any) => {
+          if (ad && (ad.id || ad.slug)) {
+            mergedMap.set(ad.id || ad.slug, ad);
+          }
+        });
+        remoteAds.forEach((ad: any) => {
+          if (ad && (ad.id || ad.slug)) {
+            mergedMap.set(ad.id || ad.slug, ad);
+          }
+        });
+
+        const combinedList = Array.from(mergedMap.values());
+        const mapped: AdDisplayItem[] = combinedList.map((item: any) => ({
+          id: item.id || item.slug,
+          title: item.title,
+          price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
+          priceNum: Number(item.price) || 0,
+          category: item.category_id || 'General',
+          subcategory: item.subcategory_id || undefined,
+          listingType: item.listing_type || 'preowned',
+          location: item.location_name || item.location_text || 'Hosur',
+          condition: item.condition || 'good',
+          image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+          postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+        }));
+        setDbAds(mapped);
 
         // 2. Fetch categories
         const { data: catData } = await (supabase.from('categories') as any)

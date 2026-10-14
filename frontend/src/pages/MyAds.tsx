@@ -41,24 +41,37 @@ export default function MyAds() {
         query = query.eq('user_id', user.id);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      let remoteAds = [];
+      try {
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (!error && data) remoteAds = data;
+      } catch (e) {}
 
-      if (error) {
-        console.error('Error fetching ads:', error);
-        setAds([]);
-      } else if (data) {
-        setAds(data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          price: `₹${Number(item.price || 0).toLocaleString()}`,
-          image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-          status: item.status || 'active',
-          created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-          views_count: item.views_count || 0,
-        })));
-      } else {
-        setAds([]);
-      }
+      // Fetch user's local ads from localStorage
+      let localAds = [];
+      try {
+        const stored = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
+        localAds = stored.filter((a: any) => a.user_id === user.id || a.contact_phone === profile?.phone);
+      } catch (e) {}
+
+      const mergedMap = new Map();
+      localAds.forEach((item: any) => {
+        if (item && (item.id || item.slug)) mergedMap.set(item.id || item.slug, item);
+      });
+      remoteAds.forEach((item: any) => {
+        if (item && (item.id || item.slug)) mergedMap.set(item.id || item.slug, item);
+      });
+
+      const combinedList = Array.from(mergedMap.values());
+      setAds(combinedList.map((item: any) => ({
+        id: item.id || item.slug,
+        title: item.title,
+        price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
+        image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+        status: item.status || 'active',
+        created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+        views_count: item.views_count || 0,
+      })));
     } catch (err) {
       console.error(err);
       setAds([]);

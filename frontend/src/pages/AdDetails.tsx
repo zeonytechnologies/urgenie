@@ -75,6 +75,33 @@ export default function AdDetails() {
           } catch {
             // Ignored
           }
+        } else {
+          // Check local storage for recently posted ad
+          try {
+            const localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
+            const found = localAds.find((a: any) => a.id === slug || a.slug === slug);
+            if (found) {
+              setAd({
+                id: found.id,
+                title: found.title,
+                price: found.listing_type === 'free' ? 'FREE' : `₹${Number(found.price || 0).toLocaleString()}`,
+                category: found.category_id || 'General',
+                subcategory: found.subcategory_id || '',
+                listing_type: found.listing_type || 'preowned',
+                attributes: found.attributes || {},
+                location: found.location_name || found.city || 'Hosur',
+                postedAt: found.created_at ? new Date(found.created_at).toLocaleDateString() : 'Recently',
+                image: found.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+                description: found.description,
+                condition: found.condition || 'Used - Good',
+                seller: found.contact_name || 'Verified Seller',
+                phone: found.contact_phone || '9876543210',
+                allow_whatsapp: found.allow_whatsapp !== false,
+                user_id: found.user_id,
+                views_count: 1,
+              });
+            }
+          } catch (e) {}
         }
       } catch (err) {
         console.error('Error fetching ad details:', err);
