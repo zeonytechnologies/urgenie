@@ -417,7 +417,74 @@ export default function Home() {
           </div>
         )}
       </section>
-      
+
+      {/* Expatriates Classifieds Posting Hub Section */}
+      <section className="container mx-auto px-4">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-10 border border-indigo-900/40 text-white shadow-xl relative overflow-hidden">
+          <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/10 pb-6 relative z-10">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold mb-2 border border-blue-400/20">
+                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                <span>Expatriates.com Classifieds Flow</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+                What would you like to post today?
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+                Choose an action from the Expatriates posting directory to instantly reach local buyers, employers, renters, and neighbors.
+              </p>
+            </div>
+            <Link 
+              to="/post-ad"
+              className="btn bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg hover:scale-105 transition-all self-start md:self-auto"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Post New Ad</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 relative z-10">
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Buy / Sell</span>
+              <p className="text-xs font-black text-white group-hover:text-blue-300 mt-0.5">I would like to sell something.</p>
+              <span className="text-[11px] text-slate-400">Cars, bikes, phones, electronics, furniture</span>
+            </Link>
+
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Jobs & Careers</span>
+              <p className="text-xs font-black text-white group-hover:text-indigo-300 mt-0.5">I am offering a job / looking for a job.</p>
+              <span className="text-[11px] text-slate-400">CNC, IT, sales, factory technicians, accountants</span>
+            </Link>
+
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Housing & Rentals</span>
+              <p className="text-xs font-black text-white group-hover:text-emerald-300 mt-0.5">I am offering housing / looking for housing.</p>
+              <span className="text-[11px] text-slate-400">Apartments, villas, PG bed space, home exchange</span>
+            </Link>
+
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-pink-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-pink-400 uppercase tracking-wider">Childcare</span>
+              <p className="text-xs font-black text-white group-hover:text-pink-300 mt-0.5">Nannies, Babysitters & Daycare.</p>
+              <span className="text-[11px] text-slate-400">Hire a nanny, childcare jobs, crèche facilities</span>
+            </Link>
+
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-teal-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Community</span>
+              <p className="text-xs font-black text-white group-hover:text-teal-300 mt-0.5">Rideshare, Lost & Found, Pet Adoption.</p>
+              <span className="text-[11px] text-slate-400">Carpool Hosur-Bangalore, lost items, sports buddies</span>
+            </Link>
+
+            <Link to="/post-ad" className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 transition-all group">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Learning & Lessons</span>
+              <p className="text-xs font-black text-white group-hover:text-amber-300 mt-0.5">Tuitions, Languages & Skill Training.</p>
+              <span className="text-[11px] text-slate-400">Language exchange, private tutors, school classes</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Luxury Call to Action Banner */}
       <section className="container mx-auto px-4">
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-3xl overflow-hidden shadow-2xl text-white relative border border-white/10">

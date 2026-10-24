@@ -9,7 +9,23 @@ import {
   ShoppingBag, 
   Sofa, 
   Factory, 
-  Users 
+  Users,
+  Clock,
+  MapPin,
+  Baby,
+  GraduationCap,
+  Handshake,
+  Palette,
+  Music,
+  Dog,
+  Newspaper,
+  Calendar,
+  Languages,
+  Repeat,
+  Layers,
+  HelpCircle,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 
 export type ListingTypeCode = 'N' | 'P' | 'R' | 'J' | 'S' | 'Free';
@@ -94,8 +110,692 @@ export interface CategoryDefinition {
   count?: number;
 }
 
+// =====================================================================
+// EXPATRIATES.COM HIERARCHICAL POSTING SECTIONS & OPTIONS
+// =====================================================================
+
+export interface ExpatriatesOption {
+  id: string;
+  title: string;
+  subtitle?: string;
+  sectionId: string;
+  mappedCategoryId: string;
+  defaultListingType: 'new' | 'preowned' | 'rent' | 'job' | 'service' | 'free';
+  hasSubcategories: boolean;
+  subcategories: SubCategory[];
+  priceLabel: string;
+  pricePlaceholder: string;
+  icon: any;
+  badge: string;
+}
+
+export interface ExpatriatesSection {
+  id: string;
+  title: string;
+  description: string;
+  icon: any;
+  color: string;
+  badgeBg: string;
+  options: ExpatriatesOption[];
+}
+
+export const EXPATRIATES_SECTIONS: ExpatriatesSection[] = [
+  // 1. Buy/Sell
+  {
+    id: 'buy-sell',
+    title: 'Buy / Sell',
+    description: 'Sell personal or commercial items, or post a request for items you wish to purchase.',
+    icon: ShoppingBag,
+    color: 'text-blue-600',
+    badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+    options: [
+      {
+        id: 'sell-item',
+        title: 'I would like to sell something.',
+        subtitle: 'Vehicles, phones, computers, appliances, furniture, clothes and general merchandise',
+        sectionId: 'buy-sell',
+        mappedCategoryId: 'buy-sell',
+        defaultListingType: 'preowned',
+        hasSubcategories: true,
+        priceLabel: 'Selling Price (₹)',
+        pricePlaceholder: 'e.g. 15000',
+        icon: Tag,
+        badge: 'For Sale',
+        subcategories: [
+          { id: 'bs-cars-vehicles', name: 'Cars & Motor Vehicles', slug: 'cars-vehicles' },
+          { id: 'bs-bikes-scooters', name: 'Motorcycles, Scooters & Bicycles', slug: 'motorcycles-scooters' },
+          { id: 'bs-mobile-phones', name: 'Mobile Phones, Tablets & Accessories', slug: 'mobile-phones-tablets' },
+          { id: 'bs-computers-laptops', name: 'Computers, Laptops & Peripherals', slug: 'computers-laptops' },
+          { id: 'bs-tv-audio', name: 'TV, Video, Audio & Cameras', slug: 'tv-audio-video' },
+          { id: 'bs-home-appliances', name: 'Electronics & Home Appliances (AC, Fridge, Washing)', slug: 'home-appliances' },
+          { id: 'bs-furniture-decor', name: 'Furniture, Living & Home Decor', slug: 'furniture-decor' },
+          { id: 'bs-clothing-fashion', name: 'Clothing, Shoes & Fashion Accessories', slug: 'clothing-fashion' },
+          { id: 'bs-baby-kids', name: 'Baby Items, Strollers & Kids Toys', slug: 'baby-kids' },
+          { id: 'bs-books-media', name: 'Books, Textbooks, Music & Media', slug: 'books-media' },
+          { id: 'bs-sports-fitness', name: 'Sports, Fitness & Gym Equipment', slug: 'sports-fitness' },
+          { id: 'bs-kitchenware', name: 'Household & Kitchenware', slug: 'household-kitchenware' },
+          { id: 'bs-jewelry-watches', name: 'Jewelry, Watches & Luxury Items', slug: 'jewelry-watches' },
+          { id: 'bs-heavy-machinery', name: 'Industrial Machinery & Heavy Equipment', slug: 'machinery-equipment' },
+          { id: 'bs-tools-hardware', name: 'Tools, Spare Parts & DIY Hardware', slug: 'tools-hardware' },
+          { id: 'bs-other-items', name: 'Other Miscellaneous Items for Sale', slug: 'other-items' },
+        ],
+      },
+      {
+        id: 'buy-item',
+        title: 'I would like to buy something.',
+        subtitle: 'Post a wanted advertisement for items, products or equipment you are looking to purchase',
+        sectionId: 'buy-sell',
+        mappedCategoryId: 'buy-sell',
+        defaultListingType: 'preowned',
+        hasSubcategories: false,
+        priceLabel: 'Target Budget (₹)',
+        pricePlaceholder: 'e.g. 20000 (or leave 0 for negotiable)',
+        icon: ShoppingBag,
+        badge: 'Wanted to Buy',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 2. Jobs
+  {
+    id: 'jobs',
+    title: 'Jobs',
+    description: 'Post your CV/Resume to find a job, or publish openings to hire talent in Hosur & beyond.',
+    icon: Briefcase,
+    color: 'text-indigo-600',
+    badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    options: [
+      {
+        id: 'job-seeking',
+        title: 'I am looking for a job.',
+        subtitle: 'Post your CV, skillset and desired position to connect with hiring managers and HRs',
+        sectionId: 'jobs',
+        mappedCategoryId: 'jobs',
+        defaultListingType: 'job',
+        hasSubcategories: false,
+        priceLabel: 'Expected Salary / CTC (₹ / Month)',
+        pricePlaceholder: 'e.g. 35000',
+        icon: Users,
+        badge: 'Job Seeker',
+        subcategories: [],
+      },
+      {
+        id: 'job-offering',
+        title: 'I am offering a job.',
+        subtitle: 'Publish job vacancies, requirement specifications and salary packages to hire qualified candidates',
+        sectionId: 'jobs',
+        mappedCategoryId: 'jobs',
+        defaultListingType: 'job',
+        hasSubcategories: false,
+        priceLabel: 'Offered Salary / Compensation (₹ / Month)',
+        pricePlaceholder: 'e.g. 40000',
+        icon: Briefcase,
+        badge: 'Hiring / Employer',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 3. Temp Jobs
+  {
+    id: 'temp-jobs',
+    title: 'Temp Jobs',
+    description: 'Hire short-term workers, freelancers, event staffing, or temporary shift support.',
+    icon: Clock,
+    color: 'text-amber-600',
+    badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
+    options: [
+      {
+        id: 'temp-jobs-hire',
+        title: 'I am looking to hire someone for a temporary job.',
+        subtitle: 'Short gigs, event support, freelance projects, seasonal helpers or urgent shifts',
+        sectionId: 'temp-jobs',
+        mappedCategoryId: 'jobs',
+        defaultListingType: 'job',
+        hasSubcategories: false,
+        priceLabel: 'Daily / Hourly Pay (₹)',
+        pricePlaceholder: 'e.g. 1200 / Day',
+        icon: Clock,
+        badge: 'Temporary Gig',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 4. Housing
+  {
+    id: 'housing',
+    title: 'Housing',
+    description: 'Apartments, villas, shared rooms, real estate sales, and home exchange options.',
+    icon: Building2,
+    color: 'text-emerald-600',
+    badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    options: [
+      {
+        id: 'housing-offering',
+        title: 'I am offering housing (or selling real estate) ...',
+        subtitle: 'Apartments, houses, villas, PG rooms for rent or properties for outright sale',
+        sectionId: 'housing',
+        mappedCategoryId: 'property',
+        defaultListingType: 'rent',
+        hasSubcategories: true,
+        priceLabel: 'Rent / Sale Price (₹)',
+        pricePlaceholder: 'e.g. 15000 (Rent/Month) or 6500000 (Sale)',
+        icon: Building2,
+        badge: 'Housing Offer',
+        subcategories: [
+          { id: 'h-apt-rent', name: 'Apartments & Flats for Rent', slug: 'apartments-rent' },
+          { id: 'h-house-rent', name: 'Independent Houses & Villas for Rent', slug: 'houses-rent' },
+          { id: 'h-rooms-rent', name: 'Rooms & Bed Space / Shared Flat for Rent', slug: 'rooms-shared-rent' },
+          { id: 'h-pg-hostels', name: 'Paying Guest (PG) & Hostels', slug: 'pg-hostels' },
+          { id: 'h-apt-sale', name: 'Apartments & Flats for Sale', slug: 'apartments-sale' },
+          { id: 'h-house-sale', name: 'Houses & Villas for Sale', slug: 'houses-sale' },
+          { id: 'h-short-term', name: 'Vacation & Short-Term Furnished Rentals', slug: 'short-term-rentals' },
+        ],
+      },
+      {
+        id: 'housing-exchange',
+        title: 'I would like to exchange my house or apartment/flat.',
+        subtitle: 'Post for mutual apartment or house swapping with other expatriates or relocators',
+        sectionId: 'housing',
+        mappedCategoryId: 'property',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Estimated Value / Rent Differential (₹)',
+        pricePlaceholder: 'e.g. Mutual swap (0)',
+        icon: Repeat,
+        badge: 'Home Exchange',
+        subcategories: [],
+      },
+      {
+        id: 'housing-seeking',
+        title: 'I am looking for housing ...',
+        subtitle: 'Post your requirements for rent, PG, room sharing or home purchase in Hosur',
+        sectionId: 'housing',
+        mappedCategoryId: 'property',
+        defaultListingType: 'rent',
+        hasSubcategories: true,
+        priceLabel: 'Maximum Budget (₹ / Month)',
+        pricePlaceholder: 'e.g. 18000',
+        icon: Building2,
+        badge: 'Looking for Housing',
+        subcategories: [
+          { id: 'hs-apt-rent', name: 'Looking for Apartment / Flat to Rent', slug: 'seek-apartment-rent' },
+          { id: 'hs-house-rent', name: 'Looking for Independent House to Rent', slug: 'seek-house-rent' },
+          { id: 'hs-room-shared', name: 'Looking for Roommate / Shared Bed Space', slug: 'seek-roommate-shared' },
+          { id: 'hs-pg', name: 'Looking for Paying Guest (PG) Accommodations', slug: 'seek-pg' },
+          { id: 'hs-buy', name: 'Looking to Buy House or Apartment', slug: 'seek-buy-home' },
+        ],
+      },
+    ],
+  },
+
+  // 5. Commercial Property
+  {
+    id: 'commercial-property',
+    title: 'Commercial Property',
+    description: 'Offices, shops, showrooms, warehouses, and industrial sheds for rent or sale.',
+    icon: Store,
+    color: 'text-violet-600',
+    badgeBg: 'bg-violet-50 text-violet-700 border-violet-200',
+    options: [
+      {
+        id: 'commercial-offering',
+        title: 'I am offering commercial property.',
+        subtitle: 'Commercial offices, retail shops, godowns, industrial factories and co-working spaces',
+        sectionId: 'commercial-property',
+        mappedCategoryId: 'commercial',
+        defaultListingType: 'rent',
+        hasSubcategories: true,
+        priceLabel: 'Rent / Sale Value (₹)',
+        pricePlaceholder: 'e.g. 35000 / Month',
+        icon: Store,
+        badge: 'Commercial Space',
+        subcategories: [
+          { id: 'cp-offices', name: 'Offices & Commercial Suites (Rent / Sale)', slug: 'commercial-offices' },
+          { id: 'cp-shops', name: 'Retail Shops & Showrooms', slug: 'retail-shops' },
+          { id: 'cp-warehouses', name: 'Warehouses, Godowns & Logistics Hubs', slug: 'warehouses-godowns' },
+          { id: 'cp-industrial-sheds', name: 'Industrial Sheds & Factory Buildings', slug: 'industrial-sheds' },
+          { id: 'cp-coworking', name: 'Co-Working Desks & Shared Workspaces', slug: 'coworking-desks' },
+        ],
+      },
+    ],
+  },
+
+  // 6. Plots
+  {
+    id: 'plots',
+    title: 'Plots',
+    description: 'Residential layouts, commercial land, agricultural farmland, and industrial plots.',
+    icon: MapPin,
+    color: 'text-emerald-700',
+    badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    options: [
+      {
+        id: 'plots-offering',
+        title: 'I am offering a plot of land.',
+        subtitle: 'DTCP approved residential plots, industrial plots, highway frontage or farmland',
+        sectionId: 'plots',
+        mappedCategoryId: 'property',
+        defaultListingType: 'preowned',
+        hasSubcategories: true,
+        priceLabel: 'Plot Price / Rate (₹)',
+        pricePlaceholder: 'e.g. 2500000 or ₹2200 / Sq.Ft',
+        icon: MapPin,
+        badge: 'Plot / Land',
+        subcategories: [
+          { id: 'pl-residential', name: 'Residential Layout Plots (Gated / DTCP / HNTDA)', slug: 'residential-plots' },
+          { id: 'pl-commercial', name: 'Commercial Land & Main Road Sites', slug: 'commercial-land' },
+          { id: 'pl-farmland', name: 'Agricultural Land, Farm Land & Estates', slug: 'agricultural-farmland' },
+          { id: 'pl-industrial', name: 'Industrial Land & Plots (SIPCOT Zones)', slug: 'industrial-plots' },
+        ],
+      },
+    ],
+  },
+
+  // 7. Childcare
+  {
+    id: 'childcare',
+    title: 'Childcare',
+    description: 'Nannies, babysitters, au pairs, and daycare / crèche centers.',
+    icon: Baby,
+    color: 'text-pink-600',
+    badgeBg: 'bg-pink-50 text-pink-700 border-pink-200',
+    options: [
+      {
+        id: 'childcare-seeking',
+        title: 'I am looking for a childcare job.',
+        subtitle: 'Qualified nannies, experienced babysitters and au pairs offering professional childcare services',
+        sectionId: 'childcare',
+        mappedCategoryId: 'services',
+        defaultListingType: 'service',
+        hasSubcategories: false,
+        priceLabel: 'Expected Rate / Salary (₹ / Month or Hour)',
+        pricePlaceholder: 'e.g. 15000 / Month',
+        icon: Baby,
+        badge: 'Childcare Seeker',
+        subcategories: [],
+      },
+      {
+        id: 'childcare-hire',
+        title: 'I want to hire a childcare provider.',
+        subtitle: 'Parents looking to hire a trusted nanny, babysitter or governess for their children',
+        sectionId: 'childcare',
+        mappedCategoryId: 'services',
+        defaultListingType: 'job',
+        hasSubcategories: false,
+        priceLabel: 'Offered Compensation (₹)',
+        pricePlaceholder: 'e.g. 18000 / Month',
+        icon: Users,
+        badge: 'Hiring Nanny',
+        subcategories: [],
+      },
+      {
+        id: 'childcare-daycare',
+        title: 'I am offering daycare.',
+        subtitle: 'Licensed daycare centers, play schools, after-school care and home crèches in Hosur',
+        sectionId: 'childcare',
+        mappedCategoryId: 'services',
+        defaultListingType: 'service',
+        hasSubcategories: false,
+        priceLabel: 'Monthly Daycare Fee (₹)',
+        pricePlaceholder: 'e.g. 4500 / Month',
+        icon: Baby,
+        badge: 'Daycare Facility',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 8. Community
+  {
+    id: 'community',
+    title: 'Community',
+    description: 'Rideshare, pet adoption, artists, lost & found, musicians, and public notices.',
+    icon: Users,
+    color: 'text-teal-600',
+    badgeBg: 'bg-teal-50 text-teal-700 border-teal-200',
+    options: [
+      {
+        id: 'community-artists',
+        title: 'I am seeking other artists.',
+        subtitle: 'Painters, sculptors, digital creators and performers seeking artistic collaboration',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Fee / Free Collab (₹)',
+        pricePlaceholder: 'Free / Collaborative',
+        icon: Palette,
+        badge: 'Artists',
+        subcategories: [],
+      },
+      {
+        id: 'community-general',
+        title: 'I am placing an ad regarding the community in general.',
+        subtitle: 'Community initiatives, neighbourhood discussions, social projects and general questions',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Price (if applicable)',
+        pricePlaceholder: 'Free / Community',
+        icon: Users,
+        badge: 'General Community',
+        subcategories: [],
+      },
+      {
+        id: 'community-guest-posting',
+        title: 'I am placing an ad regarding the community in guest posting.',
+        subtitle: 'Articles, guest blogging, community newsletters, publications and contributors',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Honorarium / Free (₹)',
+        pricePlaceholder: 'Free / N/A',
+        icon: Newspaper,
+        badge: 'Guest Posting',
+        subcategories: [],
+      },
+      {
+        id: 'community-help',
+        title: 'I am placing an ad regarding the community in help.',
+        subtitle: 'Mutual assistance, volunteering, non-profit community aid, senior citizen support',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Aid Details',
+        pricePlaceholder: 'Free / Mutual Aid',
+        icon: HelpCircle,
+        badge: 'Community Help',
+        subcategories: [],
+      },
+      {
+        id: 'community-news',
+        title: 'I am placing an ad regarding local news.',
+        subtitle: 'Hosur local events, civic notifications, traffic updates and community news items',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Cost',
+        pricePlaceholder: 'Free / Info',
+        icon: Newspaper,
+        badge: 'Local News',
+        subcategories: [],
+      },
+      {
+        id: 'community-lost-found',
+        title: 'I have lost or found something.',
+        subtitle: 'Report lost pets, keys, wallets, original documents, electronics, or notify of found items',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Optional Reward (₹)',
+        pricePlaceholder: 'e.g. 1000 Reward (or 0)',
+        icon: Tag,
+        badge: 'Lost & Found',
+        subcategories: [],
+      },
+      {
+        id: 'community-musicians',
+        title: 'I am looking for music or musicians.',
+        subtitle: 'Find bands, vocalists, guitarists, instrumentalists, studio sessions and jam buddies',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Session Rate / Free Collab (₹)',
+        pricePlaceholder: 'e.g. Free or 500 / Hour',
+        icon: Music,
+        badge: 'Musicians',
+        subcategories: [],
+      },
+      {
+        id: 'community-permit-transfer',
+        title: 'I am placing an ad seeking a mutual permit transfer.',
+        subtitle: 'Work permits, sponsorship exchanges or transfer opportunities for expatriate workers',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Transfer Costs (₹)',
+        pricePlaceholder: 'e.g. Standard statutory / Mutual',
+        icon: Repeat,
+        badge: 'Permit Transfer',
+        subcategories: [],
+      },
+      {
+        id: 'community-pet-adoption',
+        title: 'I am placing an ad regarding pet adoption.',
+        subtitle: 'Rescued puppies, cats, kittens and birds seeking caring adoptive homes',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Adoption Fee (₹)',
+        pricePlaceholder: 'Free / Nominal adoption cost',
+        icon: Dog,
+        badge: 'Pet Adoption',
+        subcategories: [],
+      },
+      {
+        id: 'community-rideshare',
+        title: 'I am looking to share a ride.',
+        subtitle: 'Daily Hosur-Bangalore-SIPCOT carpooling, weekend travel, ride sharing and seat splitting',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Fuel Share / Seat Cost (₹ / Trip)',
+        pricePlaceholder: 'e.g. 150 / Trip',
+        icon: Car,
+        badge: 'Rideshare / Carpool',
+        subcategories: [],
+      },
+      {
+        id: 'community-sports',
+        title: 'I am looking for sports partners.',
+        subtitle: 'Badminton, cricket, running, gym, football, tennis partners and weekend sports teams',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Court Share (₹)',
+        pricePlaceholder: 'e.g. 50 / Game (or Free)',
+        icon: Layers,
+        badge: 'Sports Partner',
+        subcategories: [],
+      },
+      {
+        id: 'community-event',
+        title: 'I would like to announce an event.',
+        subtitle: 'Workshops, exhibitions, festivals, weekend meetups, webinars and public gatherings',
+        sectionId: 'community',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Ticket / Entry Fee (₹)',
+        pricePlaceholder: 'Free Entry or e.g. 250',
+        icon: Calendar,
+        badge: 'Event',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 9. Learning
+  {
+    id: 'learning',
+    title: 'Learning',
+    description: 'Language exchanges, private tuitions, academic coaching, art, coding, and skill lessons.',
+    icon: GraduationCap,
+    color: 'text-amber-700',
+    badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+    options: [
+      {
+        id: 'learning-exchange',
+        title: 'I would like to exchange languages.',
+        subtitle: 'Language tandem partners (English, Tamil, Hindi, Kannada, German, French, etc.)',
+        sectionId: 'learning',
+        mappedCategoryId: 'community',
+        defaultListingType: 'free',
+        hasSubcategories: false,
+        priceLabel: 'Cost',
+        pricePlaceholder: 'Free / Mutual Exchange',
+        icon: Languages,
+        badge: 'Language Exchange',
+        subcategories: [],
+      },
+      {
+        id: 'learning-offering',
+        title: 'I am offering lessons.',
+        subtitle: 'Academic tuitions (CBSE/State/ICSE), languages, coding, music, art and competitive exams',
+        sectionId: 'learning',
+        mappedCategoryId: 'services',
+        defaultListingType: 'service',
+        hasSubcategories: false,
+        priceLabel: 'Lesson Fee (₹ / Hour or Month)',
+        pricePlaceholder: 'e.g. 500 / Hour or 3000 / Month',
+        icon: GraduationCap,
+        badge: 'Offering Lessons',
+        subcategories: [],
+      },
+      {
+        id: 'learning-seeking',
+        title: 'I am looking for lessons (languages, art, music, etc.).',
+        subtitle: 'Students and parents seeking qualified tutors, language teachers or skill instructors',
+        sectionId: 'learning',
+        mappedCategoryId: 'services',
+        defaultListingType: 'service',
+        hasSubcategories: false,
+        priceLabel: 'Target Budget (₹)',
+        pricePlaceholder: 'e.g. 400 / Hour',
+        icon: Users,
+        badge: 'Seeking Tutor',
+        subcategories: [],
+      },
+    ],
+  },
+
+  // 10. Services
+  {
+    id: 'services',
+    title: 'Services',
+    description: 'Electricians, plumbers, home repairs, deep cleaning, movers, tech support & accounting.',
+    icon: Wrench,
+    color: 'text-cyan-700',
+    badgeBg: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+    options: [
+      {
+        id: 'services-offering',
+        title: 'I am offering a service ...',
+        subtitle: 'Handyman repair, home maintenance, tech repair, transport, cleaning, beauty and legal services',
+        sectionId: 'services',
+        mappedCategoryId: 'services',
+        defaultListingType: 'service',
+        hasSubcategories: true,
+        priceLabel: 'Service Fee / Visit Charge (₹)',
+        pricePlaceholder: 'e.g. 299 / Visit',
+        icon: Wrench,
+        badge: 'Local Service',
+        subcategories: [
+          { id: 'srv-home-repair', name: 'Home Repair: Electrician, Plumber, Carpenter, Painter', slug: 'home-repairs' },
+          { id: 'srv-appliance-repair', name: 'AC, Refrigerator & Washing Machine Repair', slug: 'appliance-repair' },
+          { id: 'srv-cleaning-pest', name: 'Deep Cleaning, Housekeeping & Pest Control', slug: 'cleaning-pest' },
+          { id: 'srv-movers-packers', name: 'Movers & Packers, Mini Truck Transport', slug: 'movers-packers' },
+          { id: 'srv-it-tech', name: 'Computer, Laptop & Mobile Repair Services', slug: 'computer-tech' },
+          { id: 'srv-legal-tax', name: 'Accounting, GST, Tax, Legal & Business Registration', slug: 'accounting-legal' },
+          { id: 'srv-salon-tailoring', name: 'Salon at Home, Beauty, Massage & Tailoring', slug: 'salon-beauty' },
+          { id: 'srv-events-photo', name: 'Photography, Videography, DJ & Event Catering', slug: 'events-photography' },
+          { id: 'srv-domestic-help', name: 'Domestic Help: Maids, Cooks, Babysitters, Caretakers', slug: 'domestic-help' },
+          { id: 'srv-auto-repair', name: 'Vehicle Mechanic, Car Washing & Detailing', slug: 'auto-repair' },
+        ],
+      },
+    ],
+  },
+
+  // 11. Business (B2B)
+  {
+    id: 'business',
+    title: 'Business (B2B)',
+    description: 'Business partnerships, selling running businesses, and wholesale product distribution.',
+    icon: Handshake,
+    color: 'text-rose-600',
+    badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
+    options: [
+      {
+        id: 'business-partner',
+        title: 'I am looking for a business partner.',
+        subtitle: 'Seek co-founders, investors, strategic partners or equity investors for joint ventures',
+        sectionId: 'business',
+        mappedCategoryId: 'business',
+        defaultListingType: 'service',
+        hasSubcategories: false,
+        priceLabel: 'Required Capital / Investment (₹)',
+        pricePlaceholder: 'e.g. 500000',
+        icon: Handshake,
+        badge: 'Partner Search',
+        subcategories: [],
+      },
+      {
+        id: 'business-sell',
+        title: 'I would like to sell a business.',
+        subtitle: 'Sell an established shop, restaurant, salon, manufacturing unit, franchise or inventory',
+        sectionId: 'business',
+        mappedCategoryId: 'business',
+        defaultListingType: 'preowned',
+        hasSubcategories: false,
+        priceLabel: 'Business Asking Price (₹)',
+        pricePlaceholder: 'e.g. 1500000',
+        icon: Store,
+        badge: 'Business for Sale',
+        subcategories: [],
+      },
+      {
+        id: 'business-wholesale',
+        title: 'I am looking to distribute wholesale products.',
+        subtitle: 'Manufacturers, wholesale suppliers and distributors offering bulk agency & stockist deals',
+        sectionId: 'business',
+        mappedCategoryId: 'business',
+        defaultListingType: 'new',
+        hasSubcategories: false,
+        priceLabel: 'Minimum Order / Investment (₹)',
+        pricePlaceholder: 'e.g. 50000',
+        icon: TrendingUp,
+        badge: 'Wholesale B2B',
+        subcategories: [],
+      },
+    ],
+  },
+];
+
+// Flat list of all 32 expatriates options for easy lookup
+export const ALL_EXPATRIATES_OPTIONS: ExpatriatesOption[] = EXPATRIATES_SECTIONS.flatMap(s => s.options);
+
+export function getOptionById(optionId: string): ExpatriatesOption | undefined {
+  return ALL_EXPATRIATES_OPTIONS.find(o => o.id === optionId);
+}
+
+export function getSectionById(sectionId: string): ExpatriatesSection | undefined {
+  return EXPATRIATES_SECTIONS.find(s => s.id === sectionId);
+}
+
+export function getSectionForOption(optionId: string): ExpatriatesSection | undefined {
+  const opt = getOptionById(optionId);
+  return opt ? getSectionById(opt.sectionId) : undefined;
+}
+
+// =====================================================================
+// BACKWARD COMPATIBLE DEFINITIONS (for existing pages & queries)
+// =====================================================================
+
 export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
-  // 1. Vehicles & Bikes (N, P, R)
+  // 1. Vehicles & Bikes
   {
     id: 'vehicles',
     slug: 'vehicles-bikes',
@@ -119,7 +819,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 2. Houses & Properties (Sell, R)
+  // 2. Houses & Properties
   {
     id: 'property',
     slug: 'houses-properties',
@@ -143,7 +843,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 3. Mobiles & Tech (N, P, R)
+  // 3. Mobiles & Tech
   {
     id: 'mobiles',
     slug: 'mobiles-tech',
@@ -167,7 +867,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 4. Electronics & Appliances (N, P, R)
+  // 4. Electronics & Appliances
   {
     id: 'electronics',
     slug: 'electronics-appliances',
@@ -191,7 +891,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 5. Jobs & Careers (J)
+  // 5. Jobs & Careers
   {
     id: 'jobs',
     slug: 'jobs-careers',
@@ -218,7 +918,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 6. Business (N, P, S)
+  // 6. Business
   {
     id: 'business',
     slug: 'business',
@@ -239,7 +939,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 7. Local Services (S)
+  // 7. Local Services
   {
     id: 'services',
     slug: 'local-services',
@@ -262,8 +962,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 8. Buy & Sell (N, P)
-  // Design note: Kept for fashion, books, kids, pets, collectibles & misc
+  // 8. Buy & Sell
   {
     id: 'buy-sell',
     slug: 'buy-sell',
@@ -287,7 +986,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 9. Home & Furniture (N, P, R)
+  // 9. Home & Furniture
   {
     id: 'furniture',
     slug: 'home-furniture',
@@ -309,7 +1008,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 10. Commercial & Industrial (N, P, R)
+  // 10. Commercial & Industrial
   {
     id: 'commercial',
     slug: 'commercial-industrial',
@@ -330,7 +1029,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     ],
   },
 
-  // 11. Community (Free/Info)
+  // 11. Community
   {
     id: 'community',
     slug: 'community',
