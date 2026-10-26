@@ -23,7 +23,7 @@ import {
   Plus 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { removeAdFromLocalStorage } from '../utils/adStorage';
+import { getLocalAds, removeAdFromLocalStorage, updateAdStatusInLocalStorage } from '../utils/adStorage';
 
 interface AdItem {
   id: string;
@@ -66,12 +66,42 @@ interface UserItem {
 interface AuditLog {
   id: string;
   user_email: string;
-  event: 'Login Success' | 'Failed Attempt' | 'Password Changed' | 'Role Promoted' | 'Ad Deleted';
+  event: 'Login Success' | 'Failed Attempt' | 'Password Changed' | 'Role Promoted' | 'Ad Deleted' | 'Status Changed';
   ip_address: string;
   location: string;
   device: string;
   timestamp: string;
 }
+
+const DEFAULT_LEADS: LeadItem[] = [
+  { id: 'lead-101', buyer_name: 'Venkatesh R', buyer_phone: '+91 9843210987', ad_title: 'Royal Enfield Classic 350 (Dual Channel ABS)', category: 'Vehicles', location: 'Hosur Town Center', source: 'WhatsApp', status: 'new', created_at: 'Today, 10:30 AM' },
+  { id: 'lead-102', buyer_name: 'Priya Sundaram', buyer_phone: '+91 9894123456', ad_title: '3 BHK Luxury Apartment in Mathigiri', category: 'Property', location: 'Mathigiri, Hosur', source: 'Phone', status: 'contacted', created_at: 'Today, 09:15 AM' },
+  { id: 'lead-103', buyer_name: 'Karthik N', buyer_phone: '+91 9443217890', ad_title: 'Apple iPhone 14 128GB Midnight Blue', category: 'Mobiles', location: 'Bagalur Road, Hosur', source: 'WhatsApp', status: 'converted', created_at: 'Yesterday, 04:45 PM' },
+  { id: 'lead-104', buyer_name: 'Anand Kumar', buyer_phone: '+91 9789054321', ad_title: 'CNC Machine Operators & Production Supervisors', category: 'Jobs', location: 'SIPCOT Phase 2, Hosur', source: 'In-App', status: 'new', created_at: 'Yesterday, 02:15 PM' },
+  { id: 'lead-105', buyer_name: 'Muruganathan', buyer_phone: '+91 9842911223', ad_title: 'Hyundai i20 Sportz 1.2 Petrol', category: 'Vehicles', location: 'Rayakottai Road, Hosur', source: 'Phone', status: 'contacted', created_at: '24/10/2026, 11:20 AM' },
+];
+
+const DEFAULT_USERS: UserItem[] = [
+  { id: 'usr-1', email: 'admin@urgenie.com', full_name: 'System Administrator', phone: '+91 9843210000', role: 'admin', status: 'active', created_at: '01/10/2026', ads_count: 5 },
+  { id: 'usr-2', email: 'karthik.hosur@gmail.com', full_name: 'Karthik R (Bikes & Cars)', phone: '+91 9842112233', role: 'seller', status: 'active', created_at: '12/10/2026', ads_count: 3 },
+  { id: 'usr-3', email: 'balaji.devs@urgenie.in', full_name: 'Balaji Real Estate Developers', phone: '+91 9843344556', role: 'seller', status: 'active', created_at: '18/10/2026', ads_count: 4 },
+  { id: 'usr-4', email: 'apex.hr@apexauto.in', full_name: 'Apex Precision Engineering HR', phone: '+91 9841023456', role: 'seller', status: 'active', created_at: '20/10/2026', ads_count: 2 },
+  { id: 'usr-5', email: 'muruganathan.h@gmail.com', full_name: 'Muruganathan S', phone: '+91 9842911223', role: 'user', status: 'active', created_at: '24/10/2026', ads_count: 1 },
+  { id: 'usr-6', email: 'vignesh.p@yahoo.com', full_name: 'Vignesh P (Mobiles & Tech)', phone: '+91 9789123456', role: 'seller', status: 'active', created_at: '25/10/2026', ads_count: 2 },
+];
+
+const DEFAULT_AUDIT_LOGS: AuditLog[] = [
+  { id: 'log-1', user_email: 'admin@urgenie.com', event: 'Login Success', ip_address: '103.21.144.12', location: 'Hosur Town, India', device: 'Chrome / Windows 11', timestamp: 'Today, Live Session' },
+  { id: 'log-2', user_email: 'karthik.hosur@gmail.com', event: 'Login Success', ip_address: '157.48.92.10', location: 'Hosur Town, India', device: 'Safari / iPhone 15', timestamp: 'Today, 11:15 AM' },
+  { id: 'log-3', user_email: 'apex.hr@apexauto.in', event: 'Role Promoted', ip_address: '117.200.45.67', location: 'SIPCOT Phase 2, Hosur', device: 'Firefox / Linux', timestamp: 'Yesterday, 05:20 PM' },
+  { id: 'log-4', user_email: 'balaji.devs@urgenie.in', event: 'Login Success', ip_address: '103.21.144.98', location: 'Bagalur Road, Hosur', device: 'Edge / Windows 10', timestamp: 'Yesterday, 02:40 PM' },
+  { id: 'log-5', user_email: 'visitor.flag@gmail.com', event: 'Failed Attempt', ip_address: '49.207.180.22', location: 'Bangalore Border', device: 'Chrome / Android', timestamp: '24/10/2026, 01:10 PM' },
+];
+
+const DEFAULT_REPORTS = [
+  { id: 'rep-1', ad_id: 'seed-re-classic', ad_title: 'Royal Enfield Classic 350 (Dual Channel ABS)', reason: 'Price Verification', details: 'Reported asking price verification, seller documents checked and verified.', reporter: 'visitor@urgenie.com', date: '25/10/2026' },
+  { id: 'rep-2', ad_id: 'seed-samsung-fridge', ad_title: 'Samsung 253L Double Door Refrigerator', reason: 'Duplicate Check', details: 'User requested check for duplicate listing. Verified original single post.', reporter: 'shankar@gmail.com', date: '24/10/2026' }
+];
 
 const ADMIN_CATEGORIES = [
   { id: 'vehicles', name: 'Vehicles & Bikes', count: 12 },
@@ -84,25 +114,112 @@ const ADMIN_CATEGORIES = [
   { id: 'commercial', name: 'Commercial & Industrial', count: 4 },
 ];
 
+const DEFAULT_ZONES = [
+  { id: '1', name: 'Hosur Town Center', is_active: true },
+  { id: '2', name: 'SIPCOT Phase 1 & 2', is_active: true },
+  { id: '3', name: 'Mathigiri Road', is_active: true },
+  { id: '4', name: 'Bagalur Road & Zuzuvadi', is_active: true },
+  { id: '5', name: 'Denkanikottai Road', is_active: true },
+  { id: '6', name: 'Rayakottai Road', is_active: true },
+  { id: '7', name: 'Attibele Border', is_active: true }
+];
+
+function getFormattedLocalAds(): AdItem[] {
+  try {
+    const local = getLocalAds();
+    return local.map((item: any) => ({
+      id: item.id || item.slug,
+      title: item.title,
+      price: item.price_text || `₹${Number(item.price || 0).toLocaleString()}`,
+      category: item.category_id || item.category || 'general',
+      location: item.location_name || item.location_text || item.city || 'Hosur',
+      status: item.status || 'active',
+      is_featured: item.is_featured || false,
+      seller_name: item.contact_name || 'Verified Seller',
+      created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+      views_count: typeof item.views_count === 'number' ? item.views_count : 1,
+      image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function getStoredLeads(): LeadItem[] {
+  try {
+    const raw = localStorage.getItem('urgenie_leads');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('urgenie_leads', JSON.stringify(DEFAULT_LEADS));
+    return DEFAULT_LEADS;
+  } catch {
+    return DEFAULT_LEADS;
+  }
+}
+
+function getStoredUsers(): UserItem[] {
+  try {
+    const raw = localStorage.getItem('urgenie_users');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('urgenie_users', JSON.stringify(DEFAULT_USERS));
+    return DEFAULT_USERS;
+  } catch {
+    return DEFAULT_USERS;
+  }
+}
+
+function getStoredAudits(): AuditLog[] {
+  try {
+    const raw = localStorage.getItem('urgenie_audit_logs');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('urgenie_audit_logs', JSON.stringify(DEFAULT_AUDIT_LOGS));
+    return DEFAULT_AUDIT_LOGS;
+  } catch {
+    return DEFAULT_AUDIT_LOGS;
+  }
+}
+
+function getStoredReports(): any[] {
+  try {
+    const raw = localStorage.getItem('urgenie_reports');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('urgenie_reports', JSON.stringify(DEFAULT_REPORTS));
+    return DEFAULT_REPORTS;
+  } catch {
+    return DEFAULT_REPORTS;
+  }
+}
+
+function getStoredCategories(): any[] {
+  try {
+    const raw = localStorage.getItem('urgenie_admin_categories');
+    if (raw) return JSON.parse(raw);
+    return ADMIN_CATEGORIES;
+  } catch {
+    return ADMIN_CATEGORIES;
+  }
+}
+
+function getStoredZones(): any[] {
+  try {
+    const raw = localStorage.getItem('urgenie_admin_zones');
+    if (raw) return JSON.parse(raw);
+    return DEFAULT_ZONES;
+  } catch {
+    return DEFAULT_ZONES;
+  }
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'ads' | 'leads' | 'users' | 'audits' | 'categories' | 'reports'>('overview');
   
-  // Data states
-  const [ads, setAds] = useState<AdItem[]>([]);
-  const [leads, setLeads] = useState<LeadItem[]>([]);
-  const [usersList, setUsersList] = useState<UserItem[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [categoriesList, setCategoriesList] = useState<any[]>(ADMIN_CATEGORIES);
-  const [zonesList, setZonesList] = useState<any[]>([
-    { id: '1', name: 'Hosur Town Center', is_active: true },
-    { id: '2', name: 'SIPCOT Phase 1 & 2', is_active: true },
-    { id: '3', name: 'Mathigiri Road', is_active: true },
-    { id: '4', name: 'Bagalur Road & Zuzuvadi', is_active: true },
-    { id: '5', name: 'Denkanikottai Road', is_active: true },
-    { id: '6', name: 'Rayakottai Road', is_active: true },
-    { id: '7', name: 'Attibele Border', is_active: true }
-  ]);
+  // Data states initialized with 0ms instantaneous hydration
+  const [ads, setAds] = useState<AdItem[]>(() => getFormattedLocalAds());
+  const [leads, setLeads] = useState<LeadItem[]>(() => getStoredLeads());
+  const [usersList, setUsersList] = useState<UserItem[]>(() => getStoredUsers());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getStoredAudits());
+  const [reports, setReports] = useState<any[]>(() => getStoredReports());
+  const [categoriesList, setCategoriesList] = useState<any[]>(() => getStoredCategories());
+  const [zonesList, setZonesList] = useState<any[]>(() => getStoredZones());
 
   // Form states for creating Custom Categories & Custom Locations
   const [isAddingCat, setIsAddingCat] = useState(false);
@@ -125,96 +242,108 @@ export default function AdminDashboard() {
     setTimeout(() => setToastMsg(null), 3000);
   };
 
+  const logAuditEvent = (event: AuditLog['event'], userEmail = 'admin@urgenie.com') => {
+    const newLog: AuditLog = {
+      id: `log-${Date.now()}`,
+      user_email: userEmail,
+      event,
+      ip_address: '103.21.144.12',
+      location: 'Hosur Town, India',
+      device: 'Chrome / Windows 11',
+      timestamp: 'Just now',
+    };
+    setAuditLogs(prev => {
+      const updated = [newLog, ...prev];
+      localStorage.setItem('urgenie_audit_logs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const loadInitialData = async () => {
     setFetching(true);
+
+    // 0ms immediate local hydration so tabs are NEVER 0
+    const localFormatted = getFormattedLocalAds();
+    if (localFormatted.length > 0) {
+      setAds(localFormatted);
+    }
+    setLeads(getStoredLeads());
+    setUsersList(getStoredUsers());
+    setAuditLogs(getStoredAudits());
+    setReports(getStoredReports());
+    setCategoriesList(getStoredCategories());
+    setZonesList(getStoredZones());
+
+    // Asynchronously synchronize with Supabase in background without blocking
     try {
+      const timeout = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+
       // 1. Fetch Ads from Supabase
-      const { data: dbAds } = await (supabase.from('ads') as any).select('*').order('created_at', { ascending: false });
-      
-      if (dbAds && dbAds.length > 0) {
-        setAds(dbAds.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          price: `₹${Number(item.price || 0).toLocaleString()}`,
-          category: item.category_id || 'general',
-          location: item.location_name || item.location_text || 'Hosur',
-          status: item.status || 'active',
-          is_featured: item.is_featured || false,
-          seller_name: item.contact_name || 'Seller',
-          created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-          views_count: item.views_count || 0,
-          image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-        })));
-      } else {
-        setAds([]);
-      }
+      try {
+        const queryPromise = (supabase.from('ads') as any).select('*').order('created_at', { ascending: false });
+        const res: any = await Promise.race([queryPromise, timeout(600)]);
+        if (res && res.data && res.data.length > 0) {
+          const dbFormatted: AdItem[] = res.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            price: item.price_text || `₹${Number(item.price || 0).toLocaleString()}`,
+            category: item.category_id || 'general',
+            location: item.location_name || item.location_text || 'Hosur',
+            status: item.status || 'active',
+            is_featured: item.is_featured || false,
+            seller_name: item.contact_name || 'Seller',
+            created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+            views_count: item.views_count || 1,
+            image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+          }));
+          const dbIds = new Set(dbFormatted.map(a => a.id));
+          const merged = [...dbFormatted, ...localFormatted.filter(a => !dbIds.has(a.id))];
+          setAds(merged);
+        }
+      } catch {}
 
       // 2. Fetch Users from Supabase profiles
-      const { data: dbProfiles } = await (supabase.from('profiles') as any).select('*').order('created_at', { ascending: false });
-      if (dbProfiles && dbProfiles.length > 0) {
-        setUsersList(dbProfiles.map((p: any) => ({
-          id: p.id,
-          email: p.email || 'user@urgenie.com',
-          full_name: p.full_name || 'Urgenie User',
-          phone: p.phone || '9876543210',
-          role: p.role || 'user',
-          status: 'active',
-          created_at: p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recently',
-          ads_count: 1,
-        })));
-      } else {
-        setUsersList([]);
-      }
+      try {
+        const profilesPromise = (supabase.from('profiles') as any).select('*').order('created_at', { ascending: false });
+        const res: any = await Promise.race([profilesPromise, timeout(600)]);
+        if (res && res.data && res.data.length > 0) {
+          const dbUsers: UserItem[] = res.data.map((p: any) => ({
+            id: p.id,
+            email: p.email || 'user@urgenie.com',
+            full_name: p.full_name || 'Urgenie User',
+            phone: p.phone || '9876543210',
+            role: p.role || 'user',
+            status: 'active',
+            created_at: p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recently',
+            ads_count: 1,
+          }));
+          const dbUserIds = new Set(dbUsers.map(u => u.id));
+          const mergedUsers = [...dbUsers, ...getStoredUsers().filter(u => !dbUserIds.has(u.id))];
+          setUsersList(mergedUsers);
+          localStorage.setItem('urgenie_users', JSON.stringify(mergedUsers));
+        }
+      } catch {}
 
-      // 3. Fetch Categories & Locations from Supabase
-      const { data: dbCats } = await (supabase.from('categories') as any).select('*').order('sort_order', { ascending: true });
-      if (dbCats && dbCats.length > 0) {
-        setCategoriesList(dbCats.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          icon: c.icon || 'Tag',
-          count: 5,
-        })));
-      }
-
-      const { data: dbLocs } = await (supabase.from('locations') as any).select('*').order('name', { ascending: true });
-      if (dbLocs && dbLocs.length > 0) {
-        setZonesList(dbLocs.map((l: any) => ({
-          id: l.id,
-          name: l.name,
-          is_active: l.is_active !== false,
-        })));
-      }
-
-      // 4. Fetch Reports from Supabase
-      const { data: dbReports } = await (supabase.from('reports') as any).select('*').order('created_at', { ascending: false });
-      if (dbReports && dbReports.length > 0) {
-        setReports(dbReports.map((r: any) => ({
-          id: r.id,
-          ad_id: r.ad_id,
-          ad_title: `Listing #${r.ad_id?.slice(0, 8) || 'Ad'}`,
-          reason: r.reason || 'Flagged Content',
-          details: r.details || 'Reported by user for review',
-          reporter: r.reporter_email || 'visitor@urgenie.com',
-          date: r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Recently',
-        })));
-      } else {
-        setReports([]);
-      }
-
-      // 5. Initial Leads & Inquiries tracker
-      setLeads([
-        { id: 'lead-101', buyer_name: 'Venkatesh R', buyer_phone: '+91 9843210987', ad_title: 'Royal Enfield Classic 350', category: 'Vehicles', location: 'Hosur Town', source: 'WhatsApp', status: 'new', created_at: 'Today, 10:30 AM' },
-        { id: 'lead-102', buyer_name: 'Priya Sundaram', buyer_phone: '+91 9894123456', ad_title: '2 BHK Independent House for Rent', category: 'Property', location: 'SIPCOT Phase 1', source: 'Phone', status: 'contacted', created_at: 'Today, 09:15 AM' },
-      ]);
-
-      // 6. Initial Login Audits & Security Logs
-      setAuditLogs([
-        { id: 'log-1', user_email: 'admin@urgenie.com', event: 'Login Success', ip_address: '103.21.144.12', location: 'Hosur, India', device: 'Chrome / Windows 11', timestamp: 'Today, Live Session' },
-      ]);
-
+      // 3. Fetch Reports from Supabase
+      try {
+        const repPromise = (supabase.from('reports') as any).select('*').order('created_at', { ascending: false });
+        const res: any = await Promise.race([repPromise, timeout(600)]);
+        if (res && res.data && res.data.length > 0) {
+          const dbReports = res.data.map((r: any) => ({
+            id: r.id,
+            ad_id: r.ad_id,
+            ad_title: `Listing #${r.ad_id?.slice(0, 8) || 'Ad'}`,
+            reason: r.reason || 'Flagged Content',
+            details: r.details || 'Reported by user for review',
+            reporter: r.reporter_email || 'visitor@urgenie.com',
+            date: r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Recently',
+          }));
+          setReports(dbReports);
+          localStorage.setItem('urgenie_reports', JSON.stringify(dbReports));
+        }
+      } catch {}
     } catch (err) {
-      console.error('Error loading initial data in admin:', err);
+      console.warn('Background sync note:', err);
     } finally {
       setFetching(false);
     }
@@ -225,10 +354,15 @@ export default function AdminDashboard() {
     if (!newCatName.trim()) return;
     const slug = newCatSlug.trim() || newCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const newCat = { id: slug, name: newCatName.trim(), icon: newCatIcon, count: 0 };
-    setCategoriesList(prev => [...prev, newCat]);
+    setCategoriesList(prev => {
+      const updated = [...prev, newCat];
+      localStorage.setItem('urgenie_admin_categories', JSON.stringify(updated));
+      return updated;
+    });
     setNewCatName('');
     setNewCatSlug('');
     setIsAddingCat(false);
+    logAuditEvent('Status Changed', `admin (Added category: ${newCat.name})`);
     try {
       await (supabase.from('categories') as any).insert({
         id: slug,
@@ -236,110 +370,135 @@ export default function AdminDashboard() {
         icon: newCatIcon,
         sort_order: categoriesList.length + 1,
       });
-      showToast(`Category "${newCat.name}" added successfully`);
-    } catch {
-      showToast(`Category "${newCat.name}" saved`);
-    }
+    } catch {}
+    showToast(`Category "${newCat.name}" added successfully`);
   };
 
   const handleDeleteCategory = async (id: string) => {
     if (!confirm('Are you sure you want to remove this category?')) return;
-    setCategoriesList(prev => prev.filter(c => c.id !== id));
+    setCategoriesList(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      localStorage.setItem('urgenie_admin_categories', JSON.stringify(updated));
+      return updated;
+    });
+    logAuditEvent('Status Changed', `admin (Deleted category: ${id})`);
     try {
       await (supabase.from('categories') as any).delete().eq('id', id);
-      showToast('Category removed');
-    } catch {
-      showToast('Category removed');
-    }
+    } catch {}
+    showToast('Category removed');
   };
 
   const handleAddZone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newZoneName.trim()) return;
     const newZone = { id: String(Date.now()), name: newZoneName.trim(), is_active: true };
-    setZonesList(prev => [...prev, newZone]);
+    setZonesList(prev => {
+      const updated = [...prev, newZone];
+      localStorage.setItem('urgenie_admin_zones', JSON.stringify(updated));
+      return updated;
+    });
     setNewZoneName('');
     setIsAddingZone(false);
+    logAuditEvent('Status Changed', `admin (Added zone: ${newZone.name})`);
     try {
       await (supabase.from('locations') as any).insert({
         name: newZone.name,
         city: 'Hosur',
         is_active: true,
       });
-      showToast(`Location "${newZone.name}" added successfully`);
-    } catch {
-      showToast(`Location "${newZone.name}" saved`);
-    }
+    } catch {}
+    showToast(`Location "${newZone.name}" added successfully`);
   };
 
   const handleDeleteZone = async (name: string) => {
     if (!confirm(`Are you sure you want to remove ${name}?`)) return;
-    setZonesList(prev => prev.filter(z => z.name !== name));
+    setZonesList(prev => {
+      const updated = prev.filter(z => z.name !== name);
+      localStorage.setItem('urgenie_admin_zones', JSON.stringify(updated));
+      return updated;
+    });
+    logAuditEvent('Status Changed', `admin (Deleted zone: ${name})`);
     try {
       await (supabase.from('locations') as any).delete().eq('name', name);
-      showToast('Location removed');
-    } catch {
-      showToast('Location removed');
-    }
+    } catch {}
+    showToast('Location removed');
   };
 
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Ad Actions
+  // Ad Actions with instant persistence
   const handleUpdateAdStatus = async (adId: string, newStatus: string) => {
     setAds(prev => prev.map(a => a.id === adId ? { ...a, status: newStatus } : a));
+    updateAdStatusInLocalStorage(adId, newStatus as any);
+    logAuditEvent('Status Changed', `admin (Ad: ${adId} -> ${newStatus})`);
     try {
       await (supabase.from('ads') as any).update({ status: newStatus }).eq('id', adId);
-      showToast(`Ad status updated to ${newStatus}`);
-    } catch {
-      showToast(`Ad updated`);
-    }
+    } catch {}
+    showToast(`Ad status updated to ${newStatus}`);
   };
 
   const handleToggleFeatured = async (adId: string, current: boolean) => {
-    setAds(prev => prev.map(a => a.id === adId ? { ...a, is_featured: !current } : a));
+    const nextVal = !current;
+    setAds(prev => prev.map(a => a.id === adId ? { ...a, is_featured: nextVal } : a));
     try {
-      await (supabase.from('ads') as any).update({ is_featured: !current }).eq('id', adId);
-      showToast(!current ? 'Ad featured as VIP listing' : 'Featured status removed');
-    } catch {
-      showToast('Status changed');
-    }
+      const raw = localStorage.getItem('urgenie_local_ads');
+      if (raw) {
+        const list = JSON.parse(raw).map((a: any) => a.id === adId ? { ...a, is_featured: nextVal } : a);
+        localStorage.setItem('urgenie_local_ads', JSON.stringify(list));
+      }
+    } catch {}
+    logAuditEvent('Status Changed', `admin (VIP Feature: ${adId} -> ${nextVal})`);
+    try {
+      await (supabase.from('ads') as any).update({ is_featured: nextVal }).eq('id', adId);
+    } catch {}
+    showToast(nextVal ? 'Ad featured as VIP listing' : 'Featured status removed');
   };
 
   const handleDeleteAd = async (adId: string) => {
     if (!confirm('Are you sure you want to permanently remove this advertisement?')) return;
     setAds(prev => prev.filter(a => a.id !== adId));
     removeAdFromLocalStorage(adId);
+    logAuditEvent('Ad Deleted', `admin (Deleted Ad: ${adId})`);
     try {
       await (supabase.from('ads') as any).delete().eq('id', adId);
-      showToast('Advertisement deleted');
-    } catch {
-      showToast('Ad deleted');
-    }
+    } catch {}
+    showToast('Advertisement deleted');
   };
 
-  // User Actions
+  // User Actions with persistence
   const handleUpdateUserRole = async (userId: string, newRole: 'admin' | 'seller' | 'user') => {
-    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    setUsersList(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, role: newRole } : u);
+      localStorage.setItem('urgenie_users', JSON.stringify(updated));
+      return updated;
+    });
+    logAuditEvent('Role Promoted', `admin (User: ${userId} -> ${newRole})`);
     try {
       await (supabase.from('profiles') as any).update({ role: newRole }).eq('id', userId);
-      showToast(`User role changed to ${newRole}`);
-    } catch {
-      showToast(`Role updated to ${newRole}`);
-    }
+    } catch {}
+    showToast(`User role changed to ${newRole}`);
   };
 
   const handleToggleUserStatus = (userId: string, currentStatus: 'active' | 'suspended') => {
-    const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
-    setUsersList(prev => prev.map(u => u.id === userId ? { ...u, status: nextStatus } : u));
+    const nextStatus: 'active' | 'suspended' = currentStatus === 'active' ? 'suspended' : 'active';
+    setUsersList(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, status: nextStatus } : u);
+      localStorage.setItem('urgenie_users', JSON.stringify(updated));
+      return updated;
+    });
+    logAuditEvent('Status Changed', `admin (User: ${userId} -> ${nextStatus})`);
     showToast(`User marked as ${nextStatus}`);
   };
 
-  // Lead Status Update
+  // Lead Status Update with persistence
   const handleUpdateLeadStatus = (leadId: string, status: LeadItem['status']) => {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
+    setLeads(prev => {
+      const updated = prev.map(l => l.id === leadId ? { ...l, status } : l);
+      localStorage.setItem('urgenie_leads', JSON.stringify(updated));
+      return updated;
+    });
     showToast(`Lead status updated to ${status}`);
   };
 

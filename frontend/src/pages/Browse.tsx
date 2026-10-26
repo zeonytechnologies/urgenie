@@ -3,8 +3,8 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, Sparkles } from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
-import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES } from '../data/categories';
-import { getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
+import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES, resolvePrimaryCategory, getCategoryDisplayName } from '../data/categories';
+import { getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds } from '../utils/adStorage';
 
 interface AdDisplayItem {
   id: string;
@@ -18,6 +18,8 @@ interface AdDisplayItem {
   condition?: string;
   image: string;
   postedAt: string;
+  status?: string;
+  views_count?: number;
 }
 
 interface CategoryItem {
@@ -30,8 +32,58 @@ const DEFAULT_CATEGORIES: CategoryItem[] = CATEGORIES.map((cat: any) => ({
   name: cat.name,
 }));
 
+function formatBrowseAdItem(item: any): AdDisplayItem {
+  // Infer listing type if not directly stored as a column
+  let lType = (item.listing_type || '').toLowerCase();
+  if (!lType && item.description) {
+    if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month|rent term/i.test(item.description) || (item.price_text && item.price_text.includes('/'))) {
+      lType = 'rent';
+    } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
+      lType = 'new';
+    } else if (/Listing Type:\s*Job/i.test(item.description) || item.category_id === 'jobs') {
+      lType = 'job';
+    } else if (/Listing Type:\s*Service/i.test(item.description) || item.category_id === 'services') {
+      lType = 'service';
+    } else {
+      lType = 'preowned';
+    }
+  }
+  if (!lType) lType = 'preowned';
+
+  const priceVal = Number(item.price || 0);
+  let formattedPrice = `₹${priceVal.toLocaleString()}`;
+  if (lType === 'free') {
+    formattedPrice = 'FREE';
+  } else if (item.price_text) {
+    formattedPrice = item.price_text;
+  } else if (lType === 'rent') {
+    const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
+    formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+  }
+
+  const rawCat = item.category_id || item.category || '';
+  const rawSub = item.subcategory_id || item.subcategory || '';
+  const resolvedCat = resolvePrimaryCategory(rawCat, rawSub);
+
+  return {
+    id: item.id || item.slug,
+    title: item.title,
+    price: formattedPrice,
+    priceNum: priceVal,
+    category: resolvedCat,
+    subcategory: rawSub || undefined,
+    listingType: lType,
+    location: item.location_name || item.location_text || 'Hosur',
+    condition: item.condition || 'good',
+    image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+    status: item.status || 'active',
+    views_count: item.views_count || 1,
+  };
+}
+
 export default function Browse() {
-  const { category: paramCategory } = useParams();
+  const { category: paramCategory, subcategory: paramSubcategory } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -52,8 +104,14 @@ export default function Browse() {
   const [searchTerm, setSearchTerm] = useState<string>(searchParams.get('q') || '');
   const [currentPage, setCurrentPage] = useState<number>(1);
   
-  // Real Supabase data states
-  const [dbAds, setDbAds] = useState<AdDisplayItem[]>([]);
+  // Real data states initialized synchronously in 0ms from local storage
+  const [dbAds, setDbAds] = useState<AdDisplayItem[]>(() => {
+    const local = getLocalAds();
+    const deletedIds = getDeletedAdIds();
+    return local
+      .filter((a: any) => !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug)))
+      .map(formatBrowseAdItem);
+  });
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>(DEFAULT_CATEGORIES);
   const [locationsList, setLocationsList] = useState<string[]>([
     'Hosur Town Center',
@@ -67,7 +125,7 @@ export default function Browse() {
     'Attibele Border',
     'Zuzuvadi'
   ]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Scroll to top when pagination page changes
   useEffect(() => {
@@ -76,9 +134,12 @@ export default function Browse() {
 
   // Sync params on change
   useEffect(() => {
-    if (paramCategory && !selectedCategories.includes(paramCategory)) {
+    if (paramCategory) {
       setSelectedCategories([paramCategory]);
+    } else {
+      setSelectedCategories([]);
     }
+    setCurrentPage(1);
   }, [paramCategory]);
 
   useEffect(() => {
@@ -94,78 +155,40 @@ export default function Browse() {
     }
   }, [searchParams]);
 
-  // Fetch real Supabase ads, categories, and locations
+  // Fetch real Supabase ads, categories, and locations in background without blocking UI
   useEffect(() => {
+    let isMounted = true;
     const fetchBrowseData = async () => {
-      setLoading(true);
       try {
         // 1. Fetch real ads from Supabase with safe select('*')
         let remoteAds: any[] = [];
+        let remoteFetchSucceeded = false;
         try {
-          const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000));
+          const queryPromise = (supabase.from('ads') as any)
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!adsError && Array.isArray(adsData)) {
-            // Keep all active or unflagged ads, only filter out explicitly deleted
-            remoteAds = adsData.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
-          } else if (adsError) {
-            console.warn('Remote ads fetch notice:', adsError);
+          const res: any = await Promise.race([queryPromise, timeoutPromise]);
+          if (res && !res.error && Array.isArray(res.data)) {
+            remoteAds = res.data.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
+            remoteFetchSucceeded = true;
           }
-        } catch (fetchErr) {
-          console.warn('Remote ads fetch notice:', fetchErr);
+        } catch {
+          // Gracefully continue with local data
         }
+
+        if (!isMounted) return;
 
         // 2. Filter out any ads deleted locally (tombstones)
         const deletedIds = getDeletedAdIds();
         remoteAds = remoteAds.filter((a: any) => !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug)));
 
-        // 3. Purge stale local ads that were deleted in Supabase
+        // 3. Purge stale local ads that were deleted in Supabase ONLY IF remote fetch succeeded
         const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
-        let localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds).filter((a: any) => 
+        const localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds, remoteFetchSucceeded).filter((a: any) => 
           !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug))
         );
-
-        // Automatically sync any ads that were saved only locally (id starts with 'ad-')
-        const stuckAds = localAds.filter((a: any) => typeof a.id === 'string' && a.id.startsWith('ad-'));
-        if (stuckAds.length > 0) {
-          for (const ad of stuckAds) {
-            try {
-              const syncPayload = {
-                user_id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a',
-                category_id: ad.category_id || ad.category || 'vehicles',
-                subcategory_id: null,
-                title: ad.title,
-                slug: `${(ad.slug || 'ad').replace(/[^a-z0-9]+/gi, '-')}-${Date.now().toString().slice(-4)}`,
-                description: ad.description || ad.title,
-                price: Number(ad.price) || 0,
-                price_text: ad.price_text || `₹${Number(ad.price || 0).toLocaleString()}`,
-                is_negotiable: ad.is_negotiable ?? true,
-                condition: ad.condition || 'good',
-                location_name: ad.location_name || ad.location || 'Hosur Town Center',
-                location_text: ad.location_text || ad.location || 'Hosur Town Center',
-                contact_name: ad.contact_name || 'Verified User',
-                contact_phone: ad.contact_phone || '9876543210',
-                allow_whatsapp: true,
-                images: ad.images || (ad.image ? [ad.image] : ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600']),
-                status: 'active',
-                views_count: 0,
-                is_featured: false,
-              };
-              const { data: syncedAd } = await (supabase.from('ads') as any)
-                .insert([syncPayload])
-                .select('*')
-                .single();
-              if (syncedAd) {
-                remoteAds.push(syncedAd);
-                localAds = localAds.map((item: any) => item.id === ad.id ? syncedAd : item);
-                localStorage.setItem('urgenie_local_ads', JSON.stringify(localAds));
-              }
-            } catch (sErr) {
-              console.warn('Sync stuck ad notice:', sErr);
-            }
-          }
-        }
 
         // Combine and deduplicate
         const mergedMap = new Map<string, any>();
@@ -181,80 +204,41 @@ export default function Browse() {
         });
 
         const combinedList = Array.from(mergedMap.values());
-        const mapped: AdDisplayItem[] = combinedList.map((item: any) => {
-          // Infer listing type if not directly stored as a column
-          let lType = (item.listing_type || '').toLowerCase();
-          if (!lType && item.description) {
-            if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month|rent term/i.test(item.description) || (item.price_text && item.price_text.includes('/'))) {
-              lType = 'rent';
-            } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
-              lType = 'new';
-            } else if (/Listing Type:\s*Job/i.test(item.description) || item.category_id === 'jobs') {
-              lType = 'job';
-            } else if (/Listing Type:\s*Service/i.test(item.description) || item.category_id === 'services') {
-              lType = 'service';
-            } else {
-              lType = 'preowned';
-            }
-          }
-          if (!lType) lType = 'preowned';
+        const mapped: AdDisplayItem[] = combinedList.map(formatBrowseAdItem);
+        if (isMounted && mapped.length > 0) {
+          setDbAds(mapped);
+        }
 
-          const priceVal = Number(item.price || 0);
-          let formattedPrice = `₹${priceVal.toLocaleString()}`;
-          if (lType === 'free') {
-            formattedPrice = 'FREE';
-          } else if (item.price_text) {
-            formattedPrice = item.price_text;
-          } else if (lType === 'rent') {
-            const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
-            formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
-          }
-
-          return {
-            id: item.id || item.slug,
-            title: item.title,
-            price: formattedPrice,
-            priceNum: priceVal,
-            category: item.category_id || 'General',
-            subcategory: item.subcategory_id || undefined,
-            listingType: lType,
-            location: item.location_name || item.location_text || 'Hosur',
-            condition: item.condition || 'good',
-            image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-            postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-          };
-        });
-        setDbAds(mapped);
-
-        // 2. Fetch categories
+        // 2. Fetch categories non-blockingly
         try {
           const { data: catData } = await (supabase.from('categories') as any)
             .select('id, name')
             .order('sort_order', { ascending: true });
 
-          if (catData && catData.length > 0) {
+          if (isMounted && catData && catData.length > 0) {
             setCategoriesList(catData);
           }
         } catch {}
 
-        // 3. Fetch locations
+        // 3. Fetch locations non-blockingly
         try {
           const { data: locData } = await (supabase.from('locations') as any)
             .select('name')
             .order('name', { ascending: true });
 
-          if (locData && locData.length > 0) {
+          if (isMounted && locData && locData.length > 0) {
             setLocationsList(locData.map((l: any) => l.name));
           }
         } catch {}
       } catch (err) {
         console.error('Error fetching browse data:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchBrowseData();
+    return () => { isMounted = false; };
   }, []);
 
   // Apply filters on real Supabase ads only
@@ -275,19 +259,31 @@ export default function Browse() {
         if (adType !== selectedListingType.toLowerCase()) return false;
       }
 
-      // Categories (matches ID, slug, and name accurately)
+      // Categories (matches ID, slug, and resolved category strictly)
       if (selectedCategories.length > 0) {
         const matchCategory = selectedCategories.some((cat) => {
-          const rawCat = cat.toLowerCase();
+          const rawCat = cat.toLowerCase().trim();
           const foundCat = CLASSIFIEDS_CATEGORIES.find(
-            (c) => c.id.toLowerCase() === rawCat || c.slug.toLowerCase() === rawCat || c.name.toLowerCase() === rawCat
+            (c) => c.id.toLowerCase() === rawCat || c.slug.toLowerCase() === rawCat
           );
           const candidateKeys = [rawCat];
           if (foundCat) {
             candidateKeys.push(foundCat.id.toLowerCase(), foundCat.slug.toLowerCase());
           }
-          const adCat = (ad.category || '').toLowerCase();
-          return candidateKeys.some((k) => adCat === k || adCat.includes(k) || k.includes(adCat));
+          const adCat = (ad.category || '').toLowerCase().trim();
+          const adSub = (ad.subcategory || '').toLowerCase().trim();
+          const resolvedAdCat = resolvePrimaryCategory(adCat, adSub);
+
+          if (candidateKeys.some((k) => adCat === k || resolvedAdCat === k)) {
+            return true;
+          }
+          if (paramSubcategory && adSub === paramSubcategory.toLowerCase().trim()) {
+            return true;
+          }
+          if (foundCat && foundCat.subcategories.some(sc => sc.slug.toLowerCase() === adSub)) {
+            return true;
+          }
+          return false;
         });
         if (!matchCategory) return false;
       }
@@ -366,7 +362,7 @@ export default function Browse() {
         <div>
           <div className="text-xs font-black uppercase tracking-widest text-blue-600 mb-1">Hosur Classifieds Directory</div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 capitalize">
-            {paramCategory ? `${paramCategory.replace('-', ' ')} in Hosur` : 'All Classifieds & Listings'}
+            {paramCategory ? `${getCategoryDisplayName(paramCategory)} in Hosur` : 'All Classifieds & Listings'}
           </h1>
           <p className="text-slate-500 text-sm mt-1 font-medium">
             Showing <strong className="text-slate-900 font-extrabold">{filteredAds.length}</strong> active listings in Hosur & surrounding areas

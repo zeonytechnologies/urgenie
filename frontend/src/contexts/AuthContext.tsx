@@ -55,12 +55,31 @@ const KNOWN_ACCOUNTS: Record<string, { id: string; role: UserRole; name: string;
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('urgenie_auth_user') || localStorage.getItem('urgenie_demo_user');
+      if (saved) return JSON.parse(saved).user || null;
+    } catch {}
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(() => {
+    try {
+      const saved = localStorage.getItem('urgenie_auth_user') || localStorage.getItem('urgenie_demo_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.profile) {
+          const cachedAvatar = localStorage.getItem(`urgenie_avatar_${parsed.user?.id}`);
+          if (cachedAvatar) parsed.profile.avatar_url = cachedAvatar;
+          return parsed.profile;
+        }
+      }
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
 
-  // Restore session from localStorage on load
+  // Restore and validate session in background
   useEffect(() => {
     const initAuth = async () => {
       const saved = localStorage.getItem('urgenie_auth_user') || localStorage.getItem('urgenie_demo_user');

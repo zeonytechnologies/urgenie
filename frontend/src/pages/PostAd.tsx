@@ -23,6 +23,7 @@ import {
   getOptionById, 
   getSectionForOption,
   LISTING_TYPES,
+  getResolvedCategoryId,
   type ExpatriatesOption,
   type SubCategory
 } from '../data/categories';
@@ -84,63 +85,63 @@ export default function PostAd() {
   // TAILORED ATTRIBUTES PER EXPATRIATES OPTION
   // ==============================================================
   // 1. Buy/Sell & Vehicles
-  const [vehicleBrand, setVehicleBrand] = useState('Royal Enfield');
-  const [vehicleModel, setVehicleModel] = useState('Classic 350');
-  const [vehicleYear, setVehicleYear] = useState('2023');
+  const [vehicleBrand, setVehicleBrand] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleFuel, setVehicleFuel] = useState('Petrol');
-  const [vehicleKm, setVehicleKm] = useState('18000');
+  const [vehicleKm, setVehicleKm] = useState('');
   const [vehicleOwners, setVehicleOwners] = useState('1st Owner');
   const [vehicleTransmission, setVehicleTransmission] = useState('Manual');
   const [itemCondition, setItemCondition] = useState('Like New');
-  const [itemWarranty, setItemWarranty] = useState('Under Warranty');
-  const [itemBillBox, setItemBillBox] = useState('Original Bill & Box Available');
+  const [itemWarranty, setItemWarranty] = useState('');
+  const [itemBillBox, setItemBillBox] = useState('');
 
   // 2. Buy/Sell (Wanted)
-  const [wantedUrgency, setWantedUrgency] = useState('Immediate (Within 3 Days)');
-  const [wantedCondition, setWantedCondition] = useState('Gently Used or Like New');
+  const [wantedUrgency, setWantedUrgency] = useState('');
+  const [wantedCondition, setWantedCondition] = useState('');
 
   // 3. Jobs (Seeking vs Offering)
   const [jobTitle, setJobTitle] = useState('');
   const [jobCompany, setJobCompany] = useState('');
-  const [jobIndustry, setJobIndustry] = useState('Manufacturing & Engineering');
-  const [jobExperience, setJobExperience] = useState('2-5 Years');
+  const [jobIndustry, setJobIndustry] = useState('');
+  const [jobExperience, setJobExperience] = useState('');
   const [jobType, setJobType] = useState('Full-Time');
-  const [jobEducation, setJobEducation] = useState('Graduate / Diploma');
-  const [jobNoticePeriod, setJobNoticePeriod] = useState('Immediate Joiner');
-  const [jobWorkMode, setJobWorkMode] = useState('Onsite Hosur (SIPCOT)');
-  const [jobSkills, setJobSkills] = useState('CNC Operation, Quality Check, Basic Tally');
+  const [jobEducation, setJobEducation] = useState('');
+  const [jobNoticePeriod, setJobNoticePeriod] = useState('');
+  const [jobWorkMode, setJobWorkMode] = useState('');
+  const [jobSkills, setJobSkills] = useState('');
 
   // 4. Temp Jobs
-  const [tempDuration, setTempDuration] = useState('1-2 Weeks');
-  const [tempPayBasis, setTempPayBasis] = useState('₹1,000 / Day');
-  const [tempHours, setTempHours] = useState('9:00 AM - 6:00 PM');
-  const [tempUrgency, setTempUrgency] = useState('Immediate (Starts Tomorrow)');
+  const [tempDuration, setTempDuration] = useState('');
+  const [tempPayBasis, setTempPayBasis] = useState('');
+  const [tempHours, setTempHours] = useState('');
+  const [tempUrgency, setTempUrgency] = useState('');
 
   // 5. Housing (Offering vs Exchange vs Seeking)
   const [housingOfferType, setHousingOfferType] = useState('For Rent');
-  const [propertyBhk, setPropertyBhk] = useState('2 BHK');
-  const [propertyArea, setPropertyArea] = useState('1200');
-  const [propertyFurnishing, setPropertyFurnishing] = useState('Semi-Furnished');
-  const [propertyFloor, setPropertyFloor] = useState('1st Floor (Out of 3)');
-  const [propertyFacing, setPropertyFacing] = useState('East Facing');
-  const [propertyDeposit, setPropertyDeposit] = useState('50000');
-  const [propertyTenantPref, setPropertyTenantPref] = useState('Families Only');
-  const [propertyAvailableFrom, setPropertyAvailableFrom] = useState('Immediate');
+  const [propertyBhk, setPropertyBhk] = useState('');
+  const [propertyArea, setPropertyArea] = useState('');
+  const [propertyFurnishing, setPropertyFurnishing] = useState('');
+  const [propertyFloor, setPropertyFloor] = useState('');
+  const [propertyFacing, setPropertyFacing] = useState('');
+  const [propertyDeposit, setPropertyDeposit] = useState('');
+  const [propertyTenantPref, setPropertyTenantPref] = useState('');
+  const [propertyAvailableFrom, setPropertyAvailableFrom] = useState('');
 
   // Housing Exchange
-  const [exchangeCurrentLoc, setExchangeCurrentLoc] = useState('Hosur Town Center');
-  const [exchangeDestination, setExchangeDestination] = useState('Bangalore / Electronic City');
-  const [exchangeDuration, setExchangeDuration] = useState('6 Months - 1 Year');
+  const [exchangeCurrentLoc, setExchangeCurrentLoc] = useState('');
+  const [exchangeDestination, setExchangeDestination] = useState('');
+  const [exchangeDuration, setExchangeDuration] = useState('');
 
   // Housing Seeking
-  const [seekTenantType, setSeekTenantType] = useState('Family (3 Members)');
-  const [seekPreferredAreas, setSeekPreferredAreas] = useState('SIPCOT Phase 1 or Mathigiri');
+  const [seekTenantType, setSeekTenantType] = useState('');
+  const [seekPreferredAreas, setSeekPreferredAreas] = useState('');
 
   // 6. Commercial Property
-  const [commercialKind, setCommercialKind] = useState('Office Space');
-  const [commercialPowerLoad, setCommercialPowerLoad] = useState('25 kVA (3-Phase)');
-  const [commercialParking, setCommercialParking] = useState('Dedicated Car & Bike Parking');
-  const [commercialLoadingDock, setCommercialLoadingDock] = useState('Yes, High-Ceiling Shutter');
+  const [commercialKind, setCommercialKind] = useState('');
+  const [commercialPowerLoad, setCommercialPowerLoad] = useState('');
+  const [commercialParking, setCommercialParking] = useState('');
+  const [commercialLoadingDock, setCommercialLoadingDock] = useState('');
 
   // 7. Plots
   const [plotType, setPlotType] = useState('Residential Layout Plot (DTCP)');
@@ -200,12 +201,6 @@ export default function PostAd() {
   const [serviceWarranty, setServiceWarranty] = useState('30 Days Service Warranty');
   const [serviceCoverage, setServiceCoverage] = useState('All Hosur & SIPCOT Areas');
 
-  // 12. Business B2B
-  const [businessIndustry, setBusinessIndustry] = useState('Automobile Ancillary / Machine Shop');
-  const [businessAskingPrice, setBusinessAskingPrice] = useState('₹18,00,000');
-  const [businessTurnover, setBusinessTurnover] = useState('₹45 Lakhs / Year');
-  const [businessReason, setBusinessReason] = useState('Owner Relocating Abroad');
-  const [wholesaleMoq, setWholesaleMoq] = useState('Minimum Order Value: ₹25,000');
 
   // Sync profile data
   useEffect(() => {
@@ -374,8 +369,6 @@ export default function PostAd() {
       summary += `• Subject: ${learnSubject}\n• Mode: ${learnMode}\n• Level: ${learnLevel}\n`;
     } else if (selectedOptionId === 'services-offering') {
       summary += `• Service Scope: ${serviceSpecialty}\n• Pricing: ${servicePricingModel}\n• Warranty: ${serviceWarranty}\n• Areas Covered: ${serviceCoverage}\n`;
-    } else if (selectedOptionId.startsWith('business')) {
-      summary += `• Business Line: ${businessIndustry}\n• Asking / Capital: ${businessAskingPrice}\n• Turnover: ${businessTurnover}\n• Note: ${businessReason}\n• MOQ: ${wholesaleMoq}\n`;
     }
 
     return summary;
@@ -484,10 +477,136 @@ export default function PostAd() {
       targetUserId = 'd12fc73e-2b3c-4371-b22c-ce3181ec864a';
     }
 
+    const resolvedCategoryId = getResolvedCategoryId(selectedOptionId, selectedSubcategorySlug);
+
+    // Build comprehensive structured attributes object from all Step 2 specifications
+    const attributesObj: Record<string, any> = {
+      section: currentSection.title,
+      intent: currentOption.title,
+      subcategory: selectedSubcategorySlug,
+    };
+
+    if (selectedOptionId === 'sell-item') {
+      if (selectedSubcategorySlug.includes('vehicles') || selectedSubcategorySlug.includes('motorcycles')) {
+        attributesObj['Make / Brand'] = vehicleBrand;
+        attributesObj['Model'] = vehicleModel;
+        attributesObj['Year'] = vehicleYear;
+        attributesObj['Fuel Type'] = vehicleFuel;
+        attributesObj['KM Driven'] = vehicleKm;
+        attributesObj['Ownership'] = vehicleOwners;
+        attributesObj['Transmission'] = vehicleTransmission;
+      } else {
+        attributesObj['Condition'] = itemCondition;
+        attributesObj['Warranty'] = itemWarranty;
+        attributesObj['Bill & Box'] = itemBillBox;
+      }
+    } else if (selectedOptionId === 'buy-item') {
+      attributesObj['Desired Condition'] = wantedCondition;
+      attributesObj['Urgency'] = wantedUrgency;
+    } else if (selectedOptionId === 'job-seeking') {
+      attributesObj['Desired Role'] = jobTitle || 'Professional';
+      attributesObj['Industry'] = jobIndustry;
+      attributesObj['Experience'] = jobExperience;
+      attributesObj['Education'] = jobEducation;
+      attributesObj['Notice Period'] = jobNoticePeriod;
+      attributesObj['Key Skills'] = jobSkills;
+      attributesObj['Work Mode'] = jobWorkMode;
+    } else if (selectedOptionId === 'job-offering') {
+      attributesObj['Designation'] = jobTitle;
+      attributesObj['Company'] = jobCompany;
+      attributesObj['Industry'] = jobIndustry;
+      attributesObj['Employment Type'] = jobType;
+      attributesObj['Experience Required'] = jobExperience;
+      attributesObj['Education'] = jobEducation;
+      attributesObj['Work Location'] = jobWorkMode;
+    } else if (selectedOptionId === 'temp-jobs-hire') {
+      attributesObj['Gig Duration'] = tempDuration;
+      attributesObj['Pay Rate'] = tempPayBasis;
+      attributesObj['Timings'] = tempHours;
+      attributesObj['Immediate Joining'] = tempUrgency;
+    } else if (selectedOptionId === 'housing-offering') {
+      attributesObj['Offer Type'] = housingOfferType;
+      attributesObj['Configuration'] = propertyBhk;
+      attributesObj['Built-up Area'] = propertyArea ? `${propertyArea} Sq.Ft` : '';
+      attributesObj['Furnishing'] = propertyFurnishing;
+      attributesObj['Floor'] = propertyFloor;
+      attributesObj['Facing'] = propertyFacing;
+      attributesObj['Security Deposit'] = propertyDeposit ? `₹${propertyDeposit}` : '';
+      attributesObj['Preferred Tenants'] = propertyTenantPref;
+      attributesObj['Available From'] = propertyAvailableFrom;
+    } else if (selectedOptionId === 'housing-exchange') {
+      attributesObj['Current Property'] = exchangeCurrentLoc;
+      attributesObj['Desired Swap Location'] = exchangeDestination;
+      attributesObj['Duration'] = exchangeDuration;
+    } else if (selectedOptionId === 'housing-seeking') {
+      attributesObj['Looking for'] = propertyBhk;
+      attributesObj['Target Areas'] = seekPreferredAreas;
+      attributesObj['Tenant Profile'] = seekTenantType;
+    } else if (selectedOptionId === 'commercial-offering') {
+      attributesObj['Commercial Type'] = commercialKind;
+      attributesObj['Area'] = propertyArea ? `${propertyArea} Sq.Ft` : '';
+      attributesObj['Power Capacity'] = commercialPowerLoad;
+      attributesObj['Parking'] = commercialParking;
+      attributesObj['Loading Access'] = commercialLoadingDock;
+    } else if (selectedOptionId === 'plots-offering') {
+      attributesObj['Land Type'] = plotType;
+      attributesObj['Plot Extent'] = plotSize;
+      attributesObj['Road Width'] = plotRoadWidth;
+      attributesObj['Approvals'] = plotApproval;
+      attributesObj['Boundary Fencing'] = plotFencing;
+    } else if (selectedOptionId.startsWith('childcare')) {
+      attributesObj['Role / Facility'] = childcareRole;
+      attributesObj['Age Group'] = childcareAgeGroup;
+      attributesObj['Experience'] = childcareExperience;
+      attributesObj['Verification'] = childcareCert;
+      attributesObj['Timing'] = childcareTiming;
+    } else if (selectedOptionId === 'community-lost-found') {
+      attributesObj['Case Status'] = lostFoundStatus;
+      attributesObj['Date'] = lostFoundDate;
+      attributesObj['Landmark'] = lostFoundLocation;
+      attributesObj['Reward'] = lostFoundReward;
+    } else if (selectedOptionId === 'community-rideshare') {
+      attributesObj['Route'] = `${rideOrigin} ➔ ${rideDestination}`;
+      attributesObj['Commute Schedule'] = rideSchedule;
+      attributesObj['Vehicle'] = rideVehicle;
+      attributesObj['Available Seats'] = rideSeats;
+      attributesObj['Cost Contribution'] = rideCostShare;
+    } else if (selectedOptionId === 'community-pet-adoption') {
+      attributesObj['Pet'] = petType;
+      attributesObj['Age & Gender'] = petAgeGender;
+      attributesObj['Health & Vaccination'] = petHealth;
+    } else if (selectedOptionId === 'community-sports') {
+      attributesObj['Sport'] = sportName;
+      attributesObj['Skill Level'] = sportLevel;
+      attributesObj['Timing'] = sportTime;
+    } else if (selectedOptionId === 'community-musicians') {
+      attributesObj['Instrument / Role'] = musicRole;
+      attributesObj['Genre'] = musicGenre;
+    } else if (selectedOptionId === 'community-event') {
+      attributesObj['Event'] = eventName;
+      attributesObj['Date & Time'] = eventDate;
+      attributesObj['Venue'] = eventVenue;
+    } else if (selectedOptionId === 'learning-exchange') {
+      attributesObj['Offering Language'] = learnNativeLang;
+      attributesObj['Target Language'] = learnTargetLang;
+      attributesObj['Mode'] = learnMode;
+    } else if (selectedOptionId.startsWith('learning')) {
+      attributesObj['Subject'] = learnSubject;
+      attributesObj['Mode'] = learnMode;
+      attributesObj['Level'] = learnLevel;
+    } else if (selectedOptionId === 'services-offering') {
+      attributesObj['Service Scope'] = serviceSpecialty;
+      attributesObj['Pricing Model'] = servicePricingModel;
+      attributesObj['Warranty'] = serviceWarranty;
+      attributesObj['Areas Covered'] = serviceCoverage;
+    }
+
     const adPayload = {
       user_id: targetUserId,
-      category_id: currentOption.mappedCategoryId,
-      subcategory_id: null,
+      category_id: resolvedCategoryId,
+      category: resolvedCategoryId,
+      subcategory_id: selectedSubcategorySlug || null,
+      subcategory: selectedSubcategorySlug || '',
       listing_type: currentOption.defaultListingType,
       title: title.trim(),
       slug: `${generatedSlug}-${Date.now().toString().slice(-4)}`,
@@ -505,48 +624,35 @@ export default function PostAd() {
       status: 'active',
       views_count: 0,
       is_featured: false,
+      attributes: attributesObj,
+      // Top-level indexed fields strictly scoped to relevant category!
+      brand: (resolvedCategoryId === 'vehicles') && vehicleBrand ? vehicleBrand : null,
+      model: (resolvedCategoryId === 'vehicles') && vehicleModel ? vehicleModel : null,
+      year: (resolvedCategoryId === 'vehicles') && vehicleYear ? parseInt(vehicleYear) || null : null,
+      fuel_type: (resolvedCategoryId === 'vehicles') && vehicleFuel ? vehicleFuel : null,
+      km_driven: (resolvedCategoryId === 'vehicles') && vehicleKm ? parseInt(vehicleKm.replace(/\D/g, '')) || null : null,
+      transmission: (resolvedCategoryId === 'vehicles') && vehicleTransmission ? vehicleTransmission : null,
+      owners_count: (resolvedCategoryId === 'vehicles') && vehicleOwners ? vehicleOwners : null,
+      bhk: (resolvedCategoryId === 'property' || resolvedCategoryId === 'commercial') && propertyBhk ? propertyBhk : null,
+      area_sqft: (resolvedCategoryId === 'property' || resolvedCategoryId === 'commercial') && propertyArea ? parseInt(propertyArea.replace(/\D/g, '')) || null : null,
+      furnishing: (resolvedCategoryId === 'property' || resolvedCategoryId === 'commercial') && propertyFurnishing ? propertyFurnishing : null,
+      deposit_amount: (resolvedCategoryId === 'property' || resolvedCategoryId === 'commercial') && propertyDeposit ? parseFloat(propertyDeposit.replace(/[^\d.]/g, '')) || null : null,
+      job_type: (resolvedCategoryId === 'jobs') && jobType ? jobType : null,
     };
 
-    let publishedAd: any = null;
-    let finalId = adPayload.slug;
+    const localId = `ad-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const publishedAd = {
+      id: localId,
+      ...adPayload,
+      user_id: user.id, // associate with current authenticated user
+      created_at: new Date().toISOString(),
+      category: resolvedCategoryId,
+      subcategory: selectedSubcategorySlug,
+      attributes: attributesObj,
+    };
+    const finalId = publishedAd.slug || publishedAd.id;
 
-    try {
-      const { data, error: insertError } = await (supabase.from('ads') as any)
-        .insert([adPayload])
-        .select('*')
-        .single();
-
-      if (!insertError && data) {
-        publishedAd = data;
-        finalId = data.slug || data.id;
-      } else {
-        const { data: retryData } = await (supabase.from('ads') as any)
-          .insert([{
-            ...adPayload,
-            user_id: 'd12fc73e-2b3c-4371-b22c-ce3181ec864a',
-            slug: `${generatedSlug}-${Date.now()}`
-          }])
-          .select('*')
-          .single();
-
-        if (retryData) {
-          publishedAd = retryData;
-          finalId = retryData.slug || retryData.id;
-        }
-      }
-    } catch (dbErr) {
-      console.warn('Database insert warning, saving locally:', dbErr);
-    }
-
-    if (!publishedAd) {
-      publishedAd = {
-        id: `ad-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        ...adPayload,
-        created_at: new Date().toISOString(),
-      };
-      finalId = publishedAd.slug || publishedAd.id;
-    }
-
+    // Instant local save (0ms)
     try {
       const stored = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
       const filtered = stored.filter((a: any) => a.id !== publishedAd.id && a.slug !== publishedAd.slug);
@@ -554,6 +660,14 @@ export default function PostAd() {
     } catch (storageErr) {
       console.warn('LocalStorage save warning:', storageErr);
     }
+
+    // Non-blocking background sync to Supabase (does not block user navigation)
+    try {
+      (supabase.from('ads') as any)
+        .insert([adPayload])
+        .then(() => {})
+        .catch(() => {});
+    } catch {}
 
     setSubmitting(false);
     setCreatedAdId(finalId);
@@ -1811,54 +1925,6 @@ export default function PostAd() {
             </div>
           )}
 
-          {/* O. Business B2B */}
-          {selectedOptionId.startsWith('business') && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-rose-50/60 rounded-2xl border border-rose-200/80">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Business Line / Industry</label>
-                <input 
-                  type="text" 
-                  value={businessIndustry} 
-                  onChange={(e) => setBusinessIndustry(e.target.value)} 
-                  className="input-field py-2 text-xs" 
-                  placeholder="e.g. CNC Machine Shop, Restaurant, Wholesale Spices" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Investment / Asking Price</label>
-                <input 
-                  type="text" 
-                  value={businessAskingPrice} 
-                  onChange={(e) => setBusinessAskingPrice(e.target.value)} 
-                  className="input-field py-2 text-xs" 
-                  placeholder="e.g. ₹15,00,000" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Annual Turnover / Revenue</label>
-                <input 
-                  type="text" 
-                  value={businessTurnover} 
-                  onChange={(e) => setBusinessTurnover(e.target.value)} 
-                  className="input-field py-2 text-xs" 
-                  placeholder="e.g. ₹40 Lakhs / Year" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Reason / MOQ Terms</label>
-                <input 
-                  type="text" 
-                  value={businessReason || wholesaleMoq} 
-                  onChange={(e) => {
-                    setBusinessReason(e.target.value);
-                    setWholesaleMoq(e.target.value);
-                  }} 
-                  className="input-field py-2 text-xs" 
-                  placeholder="e.g. Relocating / Minimum Order: ₹25k" 
-                />
-              </div>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-4 border-t border-slate-200">

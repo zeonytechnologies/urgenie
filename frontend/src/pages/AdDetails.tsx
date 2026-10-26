@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   MapPin, 
@@ -13,12 +13,114 @@ import {
   ArrowLeft,
   ShieldAlert,
   Check,
-  Package
+  Package,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LISTING_TYPES } from '../data/categories';
-import { removeAdFromLocalStorage, isAdDeletedLocally } from '../utils/adStorage';
+import { LISTING_TYPES, resolvePrimaryCategory, getCategoryDisplayName } from '../data/categories';
+import { 
+  removeAdFromLocalStorage, 
+  isAdDeletedLocally, 
+  getLocalAds,
+  incrementAdViews,
+  updateAdStatusInLocalStorage
+} from '../utils/adStorage';
+
+function mapDbAdToDisplayAd(data: any, sellerProfile?: any) {
+  let lType = (data.listing_type || '').toLowerCase();
+  if (!lType && data.description) {
+    if (/Listing Type:\s*Rent/i.test(data.description) || (data.price_text && data.price_text.includes('/'))) {
+      lType = 'rent';
+    } else if (/Listing Type:\s*Sell New/i.test(data.description)) {
+      lType = 'new';
+    } else if (/Listing Type:\s*Job/i.test(data.description) || data.category_id === 'jobs') {
+      lType = 'job';
+    } else if (/Listing Type:\s*Service/i.test(data.description) || data.category_id === 'services') {
+      lType = 'service';
+    } else {
+      lType = 'preowned';
+    }
+  }
+  if (!lType) lType = 'preowned';
+
+  const priceVal = Number(data.price || 0);
+  let formattedPrice = `₹${priceVal.toLocaleString()}`;
+  if (lType === 'free') {
+    formattedPrice = 'FREE';
+  } else if (data.price_text) {
+    formattedPrice = data.price_text;
+  } else if (lType === 'rent') {
+    const period = (data.attributes?.rent_period || data.attributes?.['Rent Period'] || 'Month').replace(/^Per\s+/i, '');
+    formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+  }
+
+  const rawCat = data.category_id || data.category || '';
+  const rawSub = data.subcategory_id || data.subcategory || '';
+  const resolvedCat = resolvePrimaryCategory(rawCat, rawSub);
+
+  // Gather category-specific attributes only
+  const mergedAttrs = { ...(data.attributes || {}) };
+  const isVehicle = resolvedCat === 'vehicles';
+  const isProperty = resolvedCat === 'property' || resolvedCat === 'commercial';
+  const isJob = resolvedCat === 'jobs';
+
+  if (isVehicle) {
+    if (data.brand && !mergedAttrs['Make / Brand']) mergedAttrs['Make / Brand'] = data.brand;
+    if (data.model && !mergedAttrs['Model']) mergedAttrs['Model'] = data.model;
+    if (data.year && !mergedAttrs['Year']) mergedAttrs['Year'] = String(data.year);
+    if (data.fuel_type && !mergedAttrs['Fuel Type']) mergedAttrs['Fuel Type'] = data.fuel_type;
+    if (data.km_driven && !mergedAttrs['KM Driven']) mergedAttrs['KM Driven'] = `${data.km_driven.toLocaleString()} km`;
+    if (data.transmission && !mergedAttrs['Transmission']) mergedAttrs['Transmission'] = data.transmission;
+    if (data.owners_count && !mergedAttrs['Ownership']) mergedAttrs['Ownership'] = data.owners_count;
+  }
+
+  if (isProperty) {
+    if (data.bhk && !mergedAttrs['Configuration']) mergedAttrs['Configuration'] = data.bhk;
+    if (data.area_sqft && !mergedAttrs['Built-up Area']) mergedAttrs['Built-up Area'] = `${data.area_sqft} Sq.Ft`;
+    if (data.furnishing && !mergedAttrs['Furnishing']) mergedAttrs['Furnishing'] = data.furnishing;
+    if (data.deposit_amount && !mergedAttrs['Security Deposit']) mergedAttrs['Security Deposit'] = `₹${Number(data.deposit_amount).toLocaleString()}`;
+  }
+
+  if (isJob) {
+    if (data.job_type && !mergedAttrs['Employment Type']) mergedAttrs['Employment Type'] = data.job_type;
+  }
+
+  return {
+    id: data.id || data.slug,
+    slug: data.slug || data.id,
+    title: data.title,
+    price: formattedPrice,
+    category: resolvedCat,
+    categoryName: getCategoryDisplayName(resolvedCat),
+    subcategory: rawSub || '',
+    listing_type: lType,
+    attributes: mergedAttrs,
+    location: data.location_name || data.location_text || data.city || 'Hosur',
+    postedAt: data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Recently',
+    image: data.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    description: data.description,
+    condition: data.condition || '',
+    seller: data.contact_name || sellerProfile?.full_name || 'Verified Seller',
+    phone: data.contact_phone || sellerProfile?.phone || '9876543210',
+    allow_whatsapp: data.allow_whatsapp !== false,
+    user_id: data.user_id,
+    status: data.status || 'active',
+    views_count: typeof data.views_count === 'number' ? data.views_count : 1,
+  };
+}
+
+function findLocalAd(targetSlug?: string) {
+  if (!targetSlug || isAdDeletedLocally(targetSlug)) return null;
+  try {
+    const localAds = getLocalAds();
+    const found = localAds.find((a: any) => a.id === targetSlug || a.slug === targetSlug);
+    if (found) {
+      return mapDbAdToDisplayAd(found);
+    }
+  } catch {}
+  return null;
+}
 
 export default function AdDetails() {
   const { slug } = useParams();
@@ -32,130 +134,100 @@ export default function AdDetails() {
   const [reportReason, setReportReason] = useState('spam');
   const [reportDetails, setReportDetails] = useState('');
   const [reported, setReported] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  const [ad, setAd] = useState<any>(null);
+  // Synchronous 0ms local hydration
+  const initialAd = useMemo(() => findLocalAd(slug), [slug]);
+  const [ad, setAd] = useState<any>(initialAd);
+  const [loading, setLoading] = useState<boolean>(!initialAd);
 
   useEffect(() => {
+    // If ad is already loaded from local cache, keep loading = false so user sees it in 0ms!
+    if (initialAd) {
+      setAd(initialAd);
+      setLoading(false);
+    }
+
+    // Immediately increment and persist views for this ad
+    if (slug) {
+      const updatedViews = incrementAdViews(slug);
+      if (updatedViews) {
+        setAd((prev: any) => prev ? { ...prev, views_count: updatedViews } : prev);
+      }
+    }
+
     const fetchDbAd = async () => {
       if (!slug || isAdDeletedLocally(slug)) {
         setAd(null);
         setLoading(false);
         return;
       }
-      setLoading(true);
-      try {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
-        const query = (supabase.from('ads') as any).select('*');
-        const { data, error } = isUuid 
-          ? await query.or(`id.eq.${slug},slug.eq.${slug}`).maybeSingle()
-          : await query.eq('slug', slug).maybeSingle();
 
-        if (!error && data) {
-          let sellerProfile: any = null;
-          if (data.user_id) {
+      // Only show full-page loading if we do not even have a local copy
+      if (!initialAd && !ad) {
+        setLoading(true);
+      }
+
+      try {
+        let data: any = null;
+        let sellerProfile: any = null;
+
+        // Try Supabase with rapid 600ms race
+        try {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 600));
+          const query = (supabase.from('ads') as any).select('*');
+          const fetchPromise = isUuid 
+            ? query.or(`id.eq.${slug},slug.eq.${slug}`).maybeSingle()
+            : query.eq('slug', slug).maybeSingle();
+
+          const res: any = await Promise.race([fetchPromise, timeoutPromise]);
+          if (res && !res.error && res.data) {
+            data = res.data;
+          }
+        } catch {
+          // Fall back gracefully
+        }
+
+        // If not found in Supabase, search local storage
+        if (!data) {
+          const localAds = getLocalAds();
+          data = localAds.find((a: any) => a.id === slug || a.slug === slug);
+        }
+
+        if (data) {
+          if (data.user_id && !sellerProfile) {
             try {
               const { data: pData } = await (supabase.from('profiles') as any)
                 .select('full_name, phone, city, role, is_phone_verified')
                 .eq('id', data.user_id)
                 .maybeSingle();
-              sellerProfile = pData;
-            } catch (pErr) {
-              // Profiles lookup optional
-            }
+              if (pData) sellerProfile = pData;
+            } catch {}
           }
 
-          let lType = (data.listing_type || '').toLowerCase();
-          if (!lType && data.description) {
-            if (/Listing Type:\s*Rent/i.test(data.description) || (data.price_text && data.price_text.includes('/'))) {
-              lType = 'rent';
-            } else if (/Listing Type:\s*Sell New/i.test(data.description)) {
-              lType = 'new';
-            } else if (/Listing Type:\s*Job/i.test(data.description) || data.category_id === 'jobs') {
-              lType = 'job';
-            } else if (/Listing Type:\s*Service/i.test(data.description) || data.category_id === 'services') {
-              lType = 'service';
-            } else {
-              lType = 'preowned';
-            }
-          }
-          if (!lType) lType = 'preowned';
+          const mapped = mapDbAdToDisplayAd(data, sellerProfile);
+          // Retain whichever view count is higher (local storage vs db)
+          const storedViews = Number(localStorage.getItem(`urgenie_views_${data.id || slug}`)) || 0;
+          mapped.views_count = Math.max(mapped.views_count || 1, storedViews, 1);
+          setAd(mapped);
 
-          const priceVal = Number(data.price || 0);
-          let formattedPrice = `₹${priceVal.toLocaleString()}`;
-          if (lType === 'free') {
-            formattedPrice = 'FREE';
-          } else if (data.price_text) {
-            formattedPrice = data.price_text;
-          } else if (lType === 'rent') {
-            const period = (data.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
-            formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+          // Increment views count in database in background if possible
+          if (data.id) {
+            try {
+              (supabase.from('ads') as any)
+                .update({ views_count: (data.views_count || 0) + 1 })
+                .eq('id', data.id)
+                .then(() => {});
+            } catch {}
           }
-
-          setAd({
-            id: data.id,
-            title: data.title,
-            price: formattedPrice,
-            category: data.category_id || 'General',
-            subcategory: data.subcategory_id || '',
-            listing_type: lType,
-            attributes: data.attributes || {},
-            location: data.location_name || data.location_text || data.city || 'Hosur',
-            postedAt: data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Recently',
-            image: data.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-            description: data.description,
-            condition: data.condition || 'Used - Good',
-            seller: data.contact_name || sellerProfile?.full_name || 'Verified Seller',
-            phone: data.contact_phone || sellerProfile?.phone || '9876543210',
-            allow_whatsapp: data.allow_whatsapp !== false,
-            user_id: data.user_id,
-            views_count: data.views_count || 1,
-          });
-
-          // Increment views count in database
-          try {
-            await (supabase.from('ads') as any)
-              .update({ views_count: (data.views_count || 0) + 1 })
-              .eq('id', data.id);
-          } catch {
-            // Ignored
-          }
-        } else {
-          // Check local storage for recently posted ad
-          try {
-            const localAds = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
-            const found = localAds.find((a: any) => a.id === slug || a.slug === slug);
-            if (found) {
-              setAd({
-                id: found.id,
-                title: found.title,
-                price: found.listing_type === 'free' 
-                ? 'FREE' 
-                : found.price_text 
-                ? found.price_text 
-                : found.listing_type === 'rent'
-                ? `₹${Number(found.price || 0).toLocaleString()} / ${(found.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '')}`
-                : `₹${Number(found.price || 0).toLocaleString()}`,
-                category: found.category_id || 'General',
-                subcategory: found.subcategory_id || '',
-                listing_type: found.listing_type || 'preowned',
-                attributes: found.attributes || {},
-                location: found.location_name || found.city || 'Hosur',
-                postedAt: found.created_at ? new Date(found.created_at).toLocaleDateString() : 'Recently',
-                image: found.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-                description: found.description,
-                condition: found.condition || 'Used - Good',
-                seller: found.contact_name || 'Verified Seller',
-                phone: found.contact_phone || '9876543210',
-                allow_whatsapp: found.allow_whatsapp !== false,
-                user_id: found.user_id,
-                views_count: 1,
-              });
-            }
-          } catch (e) {}
+        } else if (!initialAd) {
+          setAd(null);
         }
       } catch (err) {
-        console.error('Error fetching ad details:', err);
+        if (!initialAd) {
+          console.error('Error fetching ad details:', err);
+          setAd(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -208,6 +280,24 @@ export default function AdDetails() {
           .delete()
           .eq('user_id', user.id)
           .eq('ad_id', ad.id);
+      }
+    } catch {
+      // Ignored
+    }
+  };
+
+  const handleToggleSold = async () => {
+    const nextStatus = ad.status === 'sold' ? 'active' : 'sold';
+    setAd((prev: any) => prev ? { ...prev, status: nextStatus } : prev);
+
+    // Persist immediately to localStorage
+    if (ad.id) updateAdStatusInLocalStorage(ad.id, nextStatus);
+    if (ad.slug && ad.slug !== ad.id) updateAdStatusInLocalStorage(ad.slug, nextStatus);
+    if (slug && slug !== ad.id && slug !== ad.slug) updateAdStatusInLocalStorage(slug, nextStatus);
+
+    try {
+      if (ad.id) {
+        await (supabase.from('ads') as any).update({ status: nextStatus }).eq('id', ad.id);
       }
     } catch {
       // Ignored
@@ -284,7 +374,7 @@ export default function AdDetails() {
           <Link to="/" className="hover:text-blue-600">Home</Link>
           <span className="text-slate-300">/</span>
           <Link to={`/category/${ad.category || 'all'}`} className="hover:text-blue-600 capitalize">
-            {ad.category || 'Classifieds'}
+            {ad.categoryName || getCategoryDisplayName(ad.category)}
           </Link>
           <span className="text-slate-300">/</span>
           <span className="text-slate-900 truncate font-bold">{ad.title}</span>
@@ -303,6 +393,15 @@ export default function AdDetails() {
             <div className="aspect-[4/3] md:aspect-[16/10] bg-slate-100 rounded-2xl overflow-hidden relative group">
               <img src={ad.image} alt={ad.title} className="w-full h-full object-cover" />
               
+              {/* Sold Out Watermark Stamp */}
+              {ad.status === 'sold' && (
+                <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                  <div className="border-4 border-red-500 text-red-500 font-black text-3xl sm:text-4xl tracking-widest px-6 py-2 rounded-xl rotate-[-12deg] bg-black/60 shadow-2xl uppercase">
+                    SOLD OUT
+                  </div>
+                </div>
+              )}
+
               <div className="absolute top-4 right-4 flex gap-2">
                 <button 
                   onClick={handleShare}
@@ -324,11 +423,39 @@ export default function AdDetails() {
             </div>
           </div>
 
+          {/* Sold Out Alert Banner */}
+          {ad.status === 'sold' && (
+            <div className="mb-6 p-4.5 bg-red-50 border-2 border-red-500/40 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xs uppercase tracking-wider shadow-md shadow-red-500/20 flex-shrink-0">
+                  SOLD
+                </div>
+                <div>
+                  <h4 className="font-black text-red-950 text-sm">This Listing is Sold Out</h4>
+                  <p className="text-xs text-red-700 font-medium">The seller has marked this item as completed or sold. Inquiries are closed.</p>
+                </div>
+              </div>
+              {canManage && (
+                <button
+                  onClick={handleToggleSold}
+                  className="self-start sm:self-auto text-xs font-black text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Reactivate Listing
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Ad Details Section */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-card">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-100 pb-6 mb-6">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {ad.status === 'sold' && (
+                    <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-xs">
+                      Sold Out
+                    </span>
+                  )}
                   {ad.listing_type && (
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                       LISTING_TYPES[ad.listing_type]?.bgLight || 'bg-blue-50 text-blue-700'
@@ -337,20 +464,24 @@ export default function AdDetails() {
                     </span>
                   )}
                   {ad.subcategory && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 capitalize">
-                      {ad.subcategory}
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 capitalize">
+                      {ad.subcategory.replace(/-/g, ' ')}
                     </span>
                   )}
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 leading-snug">{ad.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 font-semibold">
                   <div className="flex items-center gap-1.5 text-slate-700">
-                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <MapPin className="h-4 w-4 text-blue-600 flex-shrink-0" />
                     <span>{ad.location}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-400">
-                    <Clock className="h-4 w-4" />
+                    <Clock className="h-4 w-4 flex-shrink-0" />
                     <span>Posted {ad.postedAt}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50/80 px-2.5 py-0.5 rounded-full border border-blue-200/50">
+                    <Eye className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                    <span>{ad.views_count || 1} views</span>
                   </div>
                 </div>
               </div>
@@ -361,54 +492,114 @@ export default function AdDetails() {
 
             {/* Dynamic Attributes & Category Specs */}
             <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">Specifications & Details</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8 p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60">
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Category</span>
-                <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize">{ad.category}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Listing Type</span>
-                <span className="font-extrabold text-blue-600 text-xs sm:text-sm capitalize">
-                  {LISTING_TYPES[ad.listing_type]?.label || ad.listing_type}
-                </span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Condition</span>
-                <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize">{ad.condition}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Location</span>
-                <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate block">{ad.location}</span>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 mb-8 p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60">
+              {ad.subcategory && (
+                <div className="p-3.5 bg-white rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider leading-tight mb-1">Subcategory</span>
+                  <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize break-words leading-snug">
+                    {ad.subcategory.replace(/-/g, ' ')}
+                  </span>
+                </div>
+              )}
+
+              {/* Only show condition for physical goods categories, not jobs/services/property */}
+              {(() => {
+                const isPhysicalGoods = ['vehicles', 'mobiles', 'electronics', 'furniture', 'buy-sell', 'commercial'].includes((ad.category || '').toLowerCase());
+                const isInvalidCondition = !ad.condition || ['hiring', 'job', 'service', 'rent'].includes(ad.condition.toLowerCase());
+                if (!isPhysicalGoods || isInvalidCondition) return null;
+                return (
+                  <div className="p-3.5 bg-white rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center">
+                    <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider leading-tight mb-1">Condition</span>
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm capitalize break-words leading-snug">
+                      {ad.condition}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Parsed Custom Category Specifications & Attributes */}
               {(() => {
-                const lines = ((ad.description as string) || '').split('\n');
                 const specList: { label: string; value: string }[] = [];
-                lines.forEach((l: string) => {
-                  const m = l.match(/^[•\-]\s*([^:]+):\s*(.+)$/);
-                  if (m) {
-                    specList.push({ label: m[1].trim(), value: m[2].trim() });
-                  }
-                });
+                const seenLabels = new Set<string>(['category', 'listing type', 'subcategory', 'condition', 'location']);
+                const cat = (ad.category || '').toLowerCase();
 
-                // Include attributes jsonb if present
+                // Cross-category exclusion sets to ensure unrelated data is never displayed
+                const VEHICLE_KEYS = new Set([
+                  'make / brand', 'make', 'brand', 'model', 'year', 'fuel type', 'km driven', 'transmission', 
+                  'ownership', 'owners', 'registration state', 'body type'
+                ]);
+                const PROPERTY_KEYS = new Set([
+                  'configuration', 'bhk', 'built-up area', 'area', 'furnishing', 'security deposit', 'deposit', 
+                  'floor', 'facing', 'preferred tenants', 'available from', 'land type', 'plot extent', 'road width', 
+                  'approvals', 'boundary fencing', 'commercial type', 'power capacity', 'loading access', 'offer type', 
+                  'target areas', 'tenant profile', 'looking for'
+                ]);
+                const JOB_KEYS = new Set([
+                  'desired role', 'designation', 'company', 'industry', 'experience', 'experience required', 
+                  'employment type', 'education', 'work location', 'work mode', 'notice period', 'availability', 
+                  'key skills', 'gig duration', 'pay rate', 'timings', 'immediate joining'
+                ]);
+
+                const isAllowedForCategory = (label: string): boolean => {
+                  const l = label.toLowerCase();
+                  if (cat === 'jobs') {
+                    if (VEHICLE_KEYS.has(l) || PROPERTY_KEYS.has(l)) return false;
+                  } else if (cat === 'vehicles') {
+                    if (JOB_KEYS.has(l) || PROPERTY_KEYS.has(l)) return false;
+                  } else if (cat === 'property' || cat === 'commercial') {
+                    if (JOB_KEYS.has(l) || VEHICLE_KEYS.has(l)) return false;
+                  } else if (['mobiles', 'electronics', 'furniture', 'services', 'community', 'business', 'buy-sell'].includes(cat)) {
+                    if (JOB_KEYS.has(l) || PROPERTY_KEYS.has(l)) return false;
+                    if (['fuel type', 'km driven', 'transmission', 'ownership'].includes(l)) return false;
+                  }
+                  return true;
+                };
+
+                // 1. Include attributes dictionary
                 if (ad.attributes && typeof ad.attributes === 'object') {
+                  const ignoredKeys = new Set([
+                    'section', 'intent', 'subcategory', 'section_id', 'option_id', 
+                    'subcategory_slug', 'category', 'status', 'id', 'views_count', 
+                    'slug', 'images', 'created_at', 'updated_at', 'user_id', 
+                    'contact_name', 'contact_phone', 'price', 'price_text', 
+                    'title', 'description', 'location_name', 'location_text', 'city', 'state'
+                  ]);
                   Object.entries(ad.attributes).forEach(([k, v]) => {
-                    if (v && typeof v !== 'object') {
+                    if (v && typeof v !== 'object' && !ignoredKeys.has(k.toLowerCase())) {
                       const cleanLabel = k.replace(/_/g, ' ');
-                      const alreadyInList = specList.some(s => s.label.toLowerCase() === cleanLabel.toLowerCase());
-                      if (!alreadyInList) {
-                        specList.push({ label: cleanLabel, value: String(v) });
+                      const valStr = String(v).trim();
+                      if (valStr && !seenLabels.has(cleanLabel.toLowerCase()) && isAllowedForCategory(cleanLabel)) {
+                        seenLabels.add(cleanLabel.toLowerCase());
+                        specList.push({ label: cleanLabel, value: valStr });
+                      }
+                    }
+                  });
+                }
+
+                // 2. Only parse bullet points from description if attributes dictionary is empty
+                if (specList.length === 0) {
+                  const lines = ((ad.description as string) || '').split('\n');
+                  lines.forEach((l: string) => {
+                    const m = l.match(/^[•\-*]\s*([^:]+):\s*(.+)$/);
+                    if (m) {
+                      const label = m[1].trim();
+                      const value = m[2].trim();
+                      if (!seenLabels.has(label.toLowerCase()) && isAllowedForCategory(label)) {
+                        seenLabels.add(label.toLowerCase());
+                        specList.push({ label, value });
                       }
                     }
                   });
                 }
 
                 return specList.map((item, idx) => (
-                  <div key={idx} className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
-                    <span className="text-[10px] text-blue-600 block font-bold uppercase tracking-wider truncate capitalize">{item.label}</span>
-                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate block">{item.value}</span>
+                  <div key={idx} className="p-3.5 bg-white rounded-xl border border-slate-100 shadow-2xs hover:border-blue-200 transition-colors flex flex-col justify-center">
+                    <span className="text-[10px] text-blue-600 block font-bold uppercase tracking-wider leading-tight mb-1">
+                      {item.label}
+                    </span>
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm break-words leading-snug">
+                      {item.value}
+                    </span>
                   </div>
                 ));
               })()}
@@ -419,7 +610,12 @@ export default function AdDetails() {
               <p>
                 {(() => {
                   const lines = ((ad.description as string) || '').split('\n');
-                  const clean = lines.filter((l: string) => !l.startsWith('📌') && !l.match(/^[•\-]\s*[^:]+:/)).join('\n').trim();
+                  const clean = lines.filter((l: string) => 
+                    !l.startsWith('📌') && 
+                    !l.includes('━━━━━━') && 
+                    !l.includes('CLASSIFICATION & SPECIFICATIONS') && 
+                    !l.match(/^[•\-*]\s*[^:]+:/)
+                  ).join('\n').trim();
                   return clean || ad.description;
                 })()}
               </p>
@@ -431,12 +627,26 @@ export default function AdDetails() {
               
               <div className="flex items-center gap-3">
                 {canManage && (
-                  <button
-                    onClick={handleDeleteAd}
-                    className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-black px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4" /> Delete Listing
-                  </button>
+                  <>
+                    <button
+                      onClick={handleToggleSold}
+                      className={`flex items-center gap-1.5 text-xs font-black px-3.5 py-2 rounded-xl transition-colors cursor-pointer ${
+                        ad.status === 'sold'
+                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                          : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+                      }`}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {ad.status === 'sold' ? 'Mark as Active' : 'Mark as Sold Out'}
+                    </button>
+
+                    <button
+                      onClick={handleDeleteAd}
+                      className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-black px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete Listing
+                    </button>
+                  </>
                 )}
                 
                 <button
@@ -470,26 +680,39 @@ export default function AdDetails() {
 
             <p className="text-xs text-slate-400 mb-5 font-semibold">Active community seller on URGENIE Hosur</p>
 
-            <div className="space-y-3">
-              {/* WhatsApp Button with Glow */}
-              <a
-                href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn w-full py-3.5 gap-2 bg-[#25D366] text-white hover:bg-[#1fb858] rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-black justify-center transition-all hover:scale-102"
-              >
-                <MessageCircle className="h-5 w-5" /> Chat on WhatsApp
-              </a>
+            {ad.status === 'sold' ? (
+              <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-2">
+                <span className="inline-block px-3 py-1 bg-red-100 text-red-700 font-black text-xs rounded-full uppercase tracking-wider">
+                  Item Sold Out
+                </span>
+                <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                  Direct inquiries and WhatsApp messaging are closed because this advertisement has been marked as sold.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* WhatsApp Button with Glow */}
+                {ad.allow_whatsapp !== false && (
+                  <a
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn w-full py-3.5 gap-2 bg-[#25D366] text-white hover:bg-[#1fb858] rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-black justify-center transition-all hover:scale-102"
+                  >
+                    <MessageCircle className="h-5 w-5" /> Chat on WhatsApp
+                  </a>
+                )}
 
-              {/* Show Phone Number */}
-              <button
-                onClick={() => setShowNumber(true)}
-                className="btn btn-outline w-full py-3 gap-2 rounded-2xl text-xs sm:text-sm font-extrabold justify-center"
-              >
-                <Phone className="h-4 w-4 text-blue-600" />
-                {showNumber ? phoneNumber : 'Show Phone Number'}
-              </button>
-            </div>
+                {/* Show Phone Number */}
+                <button
+                  onClick={() => setShowNumber(true)}
+                  className="btn btn-outline w-full py-3 gap-2 rounded-2xl text-xs sm:text-sm font-extrabold justify-center"
+                >
+                  <Phone className="h-4 w-4 text-blue-600" />
+                  {showNumber ? phoneNumber : 'Show Phone Number'}
+                </button>
+              </div>
+            )}
 
             <div className="mt-6 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/70 text-xs text-amber-900 flex items-start gap-2.5 font-medium">
               <ShieldAlert className="h-4 w-4 flex-shrink-0 text-amber-600 mt-0.5" />

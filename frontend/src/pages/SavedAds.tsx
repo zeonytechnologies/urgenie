@@ -3,6 +3,7 @@ import { Heart, Trash2, ArrowRight, RefreshCw, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getLocalAds } from '../utils/adStorage';
 
 interface SavedAdItem {
   id: string;
@@ -13,13 +14,32 @@ interface SavedAdItem {
   image: string;
 }
 
+function getInitialSavedAds(): SavedAdItem[] {
+  try {
+    const localIds: string[] = JSON.parse(localStorage.getItem('urgenie_saved_ads') || '[]');
+    if (!localIds.length) return [];
+    const allLocal = getLocalAds();
+    return allLocal
+      .filter((ad: any) => localIds.includes(ad.id) || (ad.slug && localIds.includes(ad.slug)))
+      .map((ad: any) => ({
+        id: ad.id || ad.slug,
+        ad_id: ad.id || ad.slug,
+        title: ad.title,
+        price: `₹${Number(ad.price || 0).toLocaleString()}`,
+        location: ad.location_name || ad.location_text || 'Hosur',
+        image: ad.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export default function SavedAds() {
   const { user } = useAuth();
-  const [savedAds, setSavedAds] = useState<SavedAdItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [savedAds, setSavedAds] = useState<SavedAdItem[]>(getInitialSavedAds);
+  const [loading, setLoading] = useState(false);
 
   const fetchSavedAds = async () => {
-    setLoading(true);
     try {
       // 1. Check local saved ids
       const localIds: string[] = JSON.parse(localStorage.getItem('urgenie_saved_ads') || '[]');
@@ -27,51 +47,54 @@ export default function SavedAds() {
       let dbAds: any[] = [];
 
       if (user) {
-        const { data: savedRows, error } = await (supabase.from('saved_ads') as any)
-          .select('id, ad_id')
-          .eq('user_id', user.id);
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+          const queryPromise = (supabase.from('saved_ads') as any)
+            .select('id, ad_id')
+            .eq('user_id', user.id);
 
-        if (!error && savedRows && savedRows.length > 0) {
-          const adIds = savedRows.map((r: any) => r.ad_id);
-          const { data: adDetails } = await (supabase.from('ads') as any)
-            .select('*')
-            .in('id', adIds);
+          const { data: savedRows, error }: any = await Promise.race([queryPromise, timeoutPromise]);
 
-          if (adDetails) {
-            dbAds = adDetails.map((ad: any) => ({
-              id: ad.id,
-              ad_id: ad.id,
-              title: ad.title,
-              price: `₹${Number(ad.price || 0).toLocaleString()}`,
-              location: ad.location_name || 'Hosur',
-              image: ad.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-            }));
+          if (!error && savedRows && savedRows.length > 0) {
+            const adIds = savedRows.map((r: any) => r.ad_id);
+            const { data: adDetails } = await (supabase.from('ads') as any)
+              .select('*')
+              .in('id', adIds);
+
+            if (adDetails) {
+              dbAds = adDetails.map((ad: any) => ({
+                id: ad.id,
+                ad_id: ad.id,
+                title: ad.title,
+                price: `₹${Number(ad.price || 0).toLocaleString()}`,
+                location: ad.location_name || 'Hosur',
+                image: ad.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+              }));
+            }
           }
-        }
+        } catch {}
       }
 
-      // If no DB saved ads found but local IDs exist, fetch those
+      // If no DB saved ads found but local IDs exist, fetch from local storage
       if (dbAds.length === 0 && localIds.length > 0) {
-        const { data: adDetails } = await (supabase.from('ads') as any)
-          .select('*')
-          .in('id', localIds);
-
-        if (adDetails && adDetails.length > 0) {
-          dbAds = adDetails.map((ad: any) => ({
-            id: ad.id,
-            ad_id: ad.id,
+        const allLocal = getLocalAds();
+        dbAds = allLocal
+          .filter((ad: any) => localIds.includes(ad.id) || (ad.slug && localIds.includes(ad.slug)))
+          .map((ad: any) => ({
+            id: ad.id || ad.slug,
+            ad_id: ad.id || ad.slug,
             title: ad.title,
             price: `₹${Number(ad.price || 0).toLocaleString()}`,
-            location: ad.location_name || 'Hosur',
+            location: ad.location_name || ad.location_text || 'Hosur',
             image: ad.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
           }));
-        }
       }
 
-      setSavedAds(dbAds);
+      if (dbAds.length > 0) {
+        setSavedAds(dbAds);
+      }
     } catch (err) {
       console.error('Error fetching saved ads:', err);
-      setSavedAds([]);
     } finally {
       setLoading(false);
     }

@@ -14,7 +14,6 @@ import {
   MapPin,
   Baby,
   GraduationCap,
-  Handshake,
   Palette,
   Music,
   Dog,
@@ -24,7 +23,6 @@ import {
   Repeat,
   Layers,
   HelpCircle,
-  TrendingUp,
   Tag
 } from 'lucide-react';
 
@@ -718,60 +716,6 @@ export const EXPATRIATES_SECTIONS: ExpatriatesSection[] = [
       },
     ],
   },
-
-  // 11. Business (B2B)
-  {
-    id: 'business',
-    title: 'Business (B2B)',
-    description: 'Business partnerships, selling running businesses, and wholesale product distribution.',
-    icon: Handshake,
-    color: 'text-rose-600',
-    badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
-    options: [
-      {
-        id: 'business-partner',
-        title: 'I am looking for a business partner.',
-        subtitle: 'Seek co-founders, investors, strategic partners or equity investors for joint ventures',
-        sectionId: 'business',
-        mappedCategoryId: 'business',
-        defaultListingType: 'service',
-        hasSubcategories: false,
-        priceLabel: 'Required Capital / Investment (₹)',
-        pricePlaceholder: 'e.g. 500000',
-        icon: Handshake,
-        badge: 'Partner Search',
-        subcategories: [],
-      },
-      {
-        id: 'business-sell',
-        title: 'I would like to sell a business.',
-        subtitle: 'Sell an established shop, restaurant, salon, manufacturing unit, franchise or inventory',
-        sectionId: 'business',
-        mappedCategoryId: 'business',
-        defaultListingType: 'preowned',
-        hasSubcategories: false,
-        priceLabel: 'Business Asking Price (₹)',
-        pricePlaceholder: 'e.g. 1500000',
-        icon: Store,
-        badge: 'Business for Sale',
-        subcategories: [],
-      },
-      {
-        id: 'business-wholesale',
-        title: 'I am looking to distribute wholesale products.',
-        subtitle: 'Manufacturers, wholesale suppliers and distributors offering bulk agency & stockist deals',
-        sectionId: 'business',
-        mappedCategoryId: 'business',
-        defaultListingType: 'new',
-        hasSubcategories: false,
-        priceLabel: 'Minimum Order / Investment (₹)',
-        pricePlaceholder: 'e.g. 50000',
-        icon: TrendingUp,
-        badge: 'Wholesale B2B',
-        subcategories: [],
-      },
-    ],
-  },
 ];
 
 // Flat list of all 32 expatriates options for easy lookup
@@ -805,7 +749,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Car',
     description: 'Cars, bikes, scooters, EVs, commercial trucks & rentals',
     listingTypes: ['new', 'preowned', 'rent'],
-    count: 340,
+    count: 0,
     subcategories: [
       { id: 'v-cars', name: 'Cars', slug: 'cars' },
       { id: 'v-motorcycles', name: 'Bikes / Motorcycles', slug: 'bikes-motorcycles' },
@@ -829,7 +773,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Building2',
     description: 'Villas, plots, flats, farmland & residential/commercial rentals',
     listingTypes: ['preowned', 'rent'],
-    count: 512,
+    count: 0,
     subcategories: [
       { id: 'p-houses', name: 'Houses / Villas for Sale', slug: 'houses-villas' },
       { id: 'p-flats', name: 'Flats & Apartments for Sale', slug: 'flats-apartments' },
@@ -853,7 +797,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Smartphone',
     description: 'Smartphones, tablets, laptops, accessories & computer parts',
     listingTypes: ['new', 'preowned', 'rent'],
-    count: 420,
+    count: 0,
     subcategories: [
       { id: 'm-smartphones', name: 'Smartphones (iPhone, Android)', slug: 'smartphones' },
       { id: 'm-featurephones', name: 'Feature Phones & Basic Mobiles', slug: 'feature-phones' },
@@ -877,7 +821,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Tv',
     description: 'TVs, refrigerators, washing machines, ACs & sound systems',
     listingTypes: ['new', 'preowned', 'rent'],
-    count: 380,
+    count: 0,
     subcategories: [
       { id: 'e-tv', name: 'TV & Home Theatre Systems', slug: 'tv-home-theatre' },
       { id: 'e-fridge', name: 'Refrigerators & Freezers', slug: 'refrigerators' },
@@ -901,7 +845,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Briefcase',
     description: 'Full-time, part-time, WFH, IT, sales, factory & candidate profiles',
     listingTypes: ['job'],
-    count: 670,
+    count: 0,
     subcategories: [
       { id: 'j-it', name: 'IT / Software & Developers', slug: 'it-software' },
       { id: 'j-sales', name: 'Sales, Marketing & Business Development', slug: 'sales-marketing' },
@@ -928,7 +872,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Store',
     description: 'Businesses for sale, franchises, suppliers, wholesale & B2B services',
     listingTypes: ['new', 'preowned', 'service'],
-    count: 195,
+    count: 0,
     subcategories: [
       { id: 'b-sale', name: 'Businesses for Sale & Running Units', slug: 'businesses-for-sale' },
       { id: 'b-franchise', name: 'Franchise Opportunities & Dealerships', slug: 'franchise-opportunities' },
@@ -949,7 +893,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Wrench',
     description: 'Electricians, plumbers, home repairs, painters, cleaning & movers',
     listingTypes: ['service'],
-    count: 480,
+    count: 0,
     subcategories: [
       { id: 's-repair', name: 'Home Repair: Electrician, Plumber, Carpenter, Painter', slug: 'home-repair' },
       { id: 's-appliances', name: 'AC, Fridge & Washing Machine Repair', slug: 'appliance-repair' },
@@ -972,7 +916,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'ShoppingBag',
     description: 'Fashion, books, fitness equipment, baby products, pets & collectibles',
     listingTypes: ['new', 'preowned'],
-    count: 530,
+    count: 0,
     subcategories: [
       { id: 'bs-fashion', name: 'Fashion: Clothes, Footwear, Bags, Jewelry', slug: 'fashion-wear' },
       { id: 'bs-books', name: 'Books, Stationery & Exam Study Materials', slug: 'books-stationery' },
@@ -996,7 +940,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Sofa',
     description: 'Sofas, beds, dining tables, kitchenware, decor & furniture rentals',
     listingTypes: ['new', 'preowned', 'rent'],
-    count: 310,
+    count: 0,
     subcategories: [
       { id: 'f-sofa', name: 'Sofa Sets, Recliners & Living Chairs', slug: 'sofa-living-chairs' },
       { id: 'f-bed', name: 'Beds, Mattresses & Wardrobes', slug: 'beds-wardrobes' },
@@ -1018,7 +962,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Factory',
     description: 'Machinery, CNC, raw materials, construction tools & agro equipment',
     listingTypes: ['new', 'preowned', 'rent'],
-    count: 260,
+    count: 0,
     subcategories: [
       { id: 'c-property', name: 'Commercial Spaces: Shops, Offices, Godowns, Desks', slug: 'commercial-spaces' },
       { id: 'c-machinery', name: 'Industrial Machinery: CNC, Lathe, Compressors, Packaging', slug: 'industrial-machinery' },
@@ -1039,7 +983,7 @@ export const CLASSIFIEDS_CATEGORIES: CategoryDefinition[] = [
     iconName: 'Users',
     description: 'Lost & found, donations, free giveaways, local notices & blood donors',
     listingTypes: ['free'],
-    count: 95,
+    count: 0,
     subcategories: [
       { id: 'cm-lost', name: 'Lost and Found', slug: 'lost-and-found' },
       { id: 'cm-free', name: 'Donations & Free Giveaways', slug: 'donations-giveaways' },
@@ -1068,3 +1012,157 @@ export function getAllowedListingTypesForCategory(categoryId: string): ListingTy
   if (!cat) return [LISTING_TYPES.preowned, LISTING_TYPES.new];
   return cat.listingTypes.map(code => LISTING_TYPES[code]).filter(Boolean);
 }
+
+/**
+ * Maps a given subcategory slug to its primary top-level classifieds category.
+ * Ensures ads posted under subcategories like 'cars-vehicles' show up in 'vehicles', etc.
+ */
+export function getCategoryForSubcategory(subcategorySlug?: string): string {
+  if (!subcategorySlug) return 'buy-sell';
+  const slug = subcategorySlug.toLowerCase();
+
+  // Jobs (Checked first to prevent accidental match with machinery or appliances)
+  if ([
+    'job-seeking', 'job-offering', 'temp-jobs-hire', 'it-software', 'sales-marketing', 
+    'teaching-education', 'driver-delivery', 'security', 'hotel-restaurant', 'healthcare-nursing', 
+    'accounting-finance', 'office-admin', 'factory-production', 'construction-labour', 'beauty-salon-tailoring'
+  ].includes(slug) || slug.includes('job') || slug.startsWith('j-')) {
+    return 'jobs';
+  }
+
+  // Vehicles
+  if ([
+    'cars-vehicles', 'motorcycles-scooters', 'vehicles-bikes', 'bicycles', 'cars', 
+    'bikes-motorcycles', 'scooters', 'electric-vehicles', 'autos-vans-tempos', 
+    'trucks-buses-tractors', 'spare-parts-accessories', 'rental-vehicles'
+  ].includes(slug) || slug.includes('vehicle') || slug.includes('motorcycle') || slug.includes('bike') || slug === 'cars' || slug.startsWith('car-') || slug.endsWith('-car') || slug.includes('-cars-') || slug.includes('-car-')) {
+    return 'vehicles';
+  }
+
+  // Mobiles & Tech
+  if ([
+    'mobile-phones-tablets', 'computers-laptops', 'mobiles-tech', 'smartphones', 
+    'feature-phones', 'tablets-ipads', 'smartwatches', 'laptops', 'desktops-monitors', 
+    'mobile-accessories', 'computer-parts', 'tech-rentals'
+  ].includes(slug) || slug.includes('phone') || slug.includes('laptop') || slug.includes('tablet')) {
+    return 'mobiles';
+  }
+
+  // Electronics & Appliances
+  if ([
+    'tv-audio-video', 'home-appliances', 'electronics-appliances', 'tv-home-theatre', 
+    'refrigerators', 'washing-machines', 'ac-coolers-fans', 'water-purifiers-geysers', 
+    'kitchen-appliances', 'cameras-cctv', 'inverters-ups-batteries', 'appliance-rentals'
+  ].includes(slug) || slug.includes('appliance') || slug.includes('refrigerator') || slug.includes('fridge') || slug.includes('television') || slug.includes('coolers-fans') || slug.includes('ac-') || slug.includes('-ac') || slug === 'ac') {
+    return 'electronics';
+  }
+
+  // Furniture & Home
+  if ([
+    'furniture-decor', 'household-kitchenware', 'sofa-living-chairs', 'beds-wardrobes', 
+    'dining-study-tables', 'kitchen-cookware', 'home-decor', 'garden-patio', 'furniture-rentals'
+  ].includes(slug) || slug.includes('furniture') || slug.includes('sofa') || slug.includes('bed')) {
+    return 'furniture';
+  }
+
+  // Commercial & Industrial
+  if ([
+    'machinery-equipment', 'tools-hardware', 'commercial-spaces', 'industrial-machinery', 
+    'construction-equipment', 'agriculture-equipment', 'raw-materials', 'shop-fittings', 
+    'commercial-offices', 'retail-shops', 'warehouses-godowns', 'industrial-sheds', 'coworking-desks'
+  ].includes(slug) || slug.includes('machinery') || slug.includes('industrial') || slug.includes('warehouse')) {
+    return 'commercial';
+  }
+
+  // Houses & Properties
+  if ([
+    'apartments-rent', 'houses-rent', 'rooms-shared-rent', 'pg-hostels', 'apartments-sale', 
+    'houses-sale', 'short-term-rentals', 'seek-apartment-rent', 'seek-house-rent', 
+    'seek-roommate-shared', 'seek-pg', 'seek-buy-home', 'residential-plots', 'commercial-plots', 
+    'agricultural-land', 'industrial-plots', 'houses-villas', 'flats-apartments', 'plots-land', 
+    'farmland', 'rent-houses', 'rent-flats', 'rent-pg-hostels', 'shops-offices'
+  ].includes(slug) || slug.includes('housing') || slug.includes('villa') || slug.includes('plot') || slug.includes('apartment') || slug.includes('real-estate') || slug.startsWith('rent-') || slug.endsWith('-rent') || slug.includes('-rent-')) {
+    return 'property';
+  }
+
+  // Services
+  if ([
+    'childcare', 'home-repair', 'appliance-repair', 'cleaning-pest-control', 'movers-packers', 
+    'personal-care', 'events-catering', 'domestic-help', 'courier-vehicle-washing', 'tutors-lessons', 'classes-courses'
+  ].includes(slug) || slug.includes('service') || slug.startsWith('s-')) {
+    return 'services';
+  }
+
+  // Community
+  if ([
+    'community-lost-found', 'community-rideshare', 'community-pet-adoption', 'community-sports', 
+    'community-musicians', 'community-event', 'community-notices', 'lost-and-found', 'donations-giveaways', 
+    'events-workshops', 'blood-donors', 'local-notices'
+  ].includes(slug) || slug.includes('community') || slug.startsWith('cm-')) {
+    return 'community';
+  }
+
+  return 'buy-sell';
+}
+
+/**
+ * Resolves the primary category ID for an Expatriates posting selection.
+ */
+export function getResolvedCategoryId(optionId: string, subcategorySlug?: string): string {
+  if (subcategorySlug) {
+    const fromSub = getCategoryForSubcategory(subcategorySlug);
+    if (fromSub && fromSub !== 'buy-sell') return fromSub;
+  }
+  if (!optionId) return 'buy-sell';
+  if (optionId.startsWith('housing') || optionId.startsWith('plots')) return 'property';
+  if (optionId.startsWith('commercial')) return 'commercial';
+  if (optionId.startsWith('job') || optionId.startsWith('temp-job')) return 'jobs';
+  if (optionId.startsWith('childcare') || optionId.startsWith('service') || optionId.startsWith('learning')) return 'services';
+  if (optionId.startsWith('community')) return 'community';
+
+  const opt = getOptionById(optionId);
+  if (opt && opt.mappedCategoryId) return opt.mappedCategoryId;
+  return 'buy-sell';
+}
+
+/**
+ * Safely resolves the primary category ID for an ad based on its stored category and subcategory.
+ * Ensures ads with subcategories like 'cars-vehicles' or 'motorcycles-scooters' always map to 'vehicles'.
+ */
+export function resolvePrimaryCategory(cat?: string, sub?: string): string {
+  const cleanSub = (sub || '').toLowerCase().trim();
+  const cleanCat = (cat || '').toLowerCase().trim();
+
+  const primaryCategories = new Set([
+    'vehicles', 'property', 'mobiles', 'electronics', 'furniture', 
+    'jobs', 'services', 'commercial', 'community'
+  ]);
+
+  // 1. If category is already a valid primary category, trust it
+  if (primaryCategories.has(cleanCat)) {
+    return cleanCat;
+  }
+
+  // 2. If subcategory resolves to a distinct category, use that
+  if (cleanSub) {
+    const fromSub = getCategoryForSubcategory(cleanSub);
+    if (fromSub && fromSub !== 'buy-sell') {
+      return fromSub;
+    }
+  }
+
+  // 3. Fallback
+  return cleanCat || 'buy-sell';
+}
+
+/**
+ * Returns human-friendly category display name.
+ */
+export function getCategoryDisplayName(catId?: string): string {
+  if (!catId) return 'All Classifieds';
+  const found = CLASSIFIEDS_CATEGORIES.find(c => c.id.toLowerCase() === catId.toLowerCase() || c.slug.toLowerCase() === catId.toLowerCase());
+  if (found) return found.name;
+  return catId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+

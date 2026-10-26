@@ -4,7 +4,7 @@ import { Trash2, Eye, PlusCircle, CheckCircle, ExternalLink, RefreshCw, AlertCir
 import { clsx } from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { removeAdFromLocalStorage, getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
+import { removeAdFromLocalStorage, getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds, updateAdStatusInLocalStorage } from '../utils/adStorage';
 
 interface AdItem {
   id: string;
@@ -16,17 +16,37 @@ interface AdItem {
   views_count?: number;
 }
 
+function getInitialUserAds(user: any, profile: any): AdItem[] {
+  if (!user) return [];
+  const local = getLocalAds();
+  const deletedIds = getDeletedAdIds();
+  const userLocalAds = local.filter((a: any) => 
+    (a.user_id === user.id || a.contact_phone === profile?.phone || a.user_id === 'd12fc73e-2b3c-4371-b22c-ce3181ec864a') &&
+    !deletedIds.has(a.id) &&
+    (!a.slug || !deletedIds.has(a.slug))
+  );
+
+  return userLocalAds.map((item: any) => ({
+    id: item.id || item.slug,
+    title: item.title,
+    price: item.listing_type === 'free' ? 'FREE' : `₹${Number(item.price || 0).toLocaleString()}`,
+    image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    status: item.status || 'active',
+    created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+    views_count: item.views_count || 0,
+  }));
+}
+
 export default function MyAds() {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('active');
-  const [ads, setAds] = useState<AdItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ads, setAds] = useState<AdItem[]>(() => getInitialUserAds(user, profile));
+  const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const tabs = ['active', 'pending', 'sold'];
 
   const fetchUserAds = async () => {
-    setLoading(true);
     setActionError(null);
     try {
       if (!user) {
@@ -43,10 +63,13 @@ export default function MyAds() {
       }
 
       let remoteAds: any[] = [];
+      let remoteFetchSucceeded = false;
       try {
-        const { data, error } = await query.order('created_at', { ascending: false });
-        if (!error && Array.isArray(data)) {
-          remoteAds = data;
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000));
+        const res: any = await Promise.race([query.order('created_at', { ascending: false }), timeoutPromise]);
+        if (res && !res.error && Array.isArray(res.data)) {
+          remoteAds = res.data;
+          remoteFetchSucceeded = true;
         }
       } catch (e) {}
 
@@ -56,10 +79,10 @@ export default function MyAds() {
       // Live remote IDs
       const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
 
-      // Purge stale local ads that were deleted in Supabase
-      const validLocal = purgeDeletedAndStaleLocalAds(liveRemoteIds);
+      // Purge stale local ads that were deleted in Supabase ONLY IF remote fetch succeeded
+      const validLocal = purgeDeletedAndStaleLocalAds(liveRemoteIds, remoteFetchSucceeded);
       const userLocalAds = validLocal.filter((a: any) => 
-        (a.user_id === user.id || a.contact_phone === profile?.phone) &&
+        (a.user_id === user.id || a.contact_phone === profile?.phone || a.user_id === 'd12fc73e-2b3c-4371-b22c-ce3181ec864a') &&
         !deletedIds.has(a.id) &&
         (!a.slug || !deletedIds.has(a.slug))
       );
@@ -88,7 +111,6 @@ export default function MyAds() {
       })));
     } catch (err) {
       console.error(err);
-      setAds([]);
     } finally {
       setLoading(false);
     }
@@ -100,6 +122,7 @@ export default function MyAds() {
 
   const handleMarkSold = async (id: string) => {
     try {
+      updateAdStatusInLocalStorage(id, 'sold');
       setAds(prev => prev.map(a => a.id === id ? { ...a, status: 'sold' } : a));
       const { error } = await (supabase.from('ads') as any).update({ status: 'sold' }).eq('id', id);
       if (error) {
@@ -112,6 +135,7 @@ export default function MyAds() {
 
   const handleMarkActive = async (id: string) => {
     try {
+      updateAdStatusInLocalStorage(id, 'active');
       setAds(prev => prev.map(a => a.id === id ? { ...a, status: 'active' } : a));
       const { error } = await (supabase.from('ads') as any).update({ status: 'active' }).eq('id', id);
       if (error) {

@@ -4,7 +4,8 @@ import { Search, MapPin, ChevronRight, Sparkles, ShieldCheck, Tag, PlusCircle, P
 import * as Icons from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
-import { getDeletedAdIds, purgeDeletedAndStaleLocalAds } from '../utils/adStorage';
+import { getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds } from '../utils/adStorage';
+import { resolvePrimaryCategory } from '../data/categories';
 
 interface CategoryItem {
   id: string;
@@ -21,20 +22,22 @@ interface AdItem {
   image: string;
   category: string;
   postedAt: string;
+  status?: string;
+  views_count?: number;
 }
 
 const DEFAULT_CATEGORIES: CategoryItem[] = [
-  { id: 'vehicles', name: 'Vehicles & Bikes', icon: 'Car', count: 620 },
-  { id: 'property', name: 'Houses & Properties', icon: 'Building2', count: 850 },
-  { id: 'mobiles', name: 'Mobiles & Tech', icon: 'Smartphone', count: 740 },
-  { id: 'electronics', name: 'Electronics & Appliances', icon: 'Tv', count: 590 },
-  { id: 'jobs', name: 'Jobs & Careers', icon: 'Briefcase', count: 1240 },
-  { id: 'business', name: 'Business', icon: 'Store', count: 210 },
-  { id: 'services', name: 'Local Services', icon: 'Wrench', count: 420 },
-  { id: 'buy-sell', name: 'Buy & Sell', icon: 'ShoppingBag', count: 980 },
-  { id: 'furniture', name: 'Home & Furniture', icon: 'Sofa', count: 460 },
-  { id: 'commercial', name: 'Commercial & Industrial', icon: 'Factory', count: 320 },
-  { id: 'community', name: 'Community', icon: 'Users', count: 85 },
+  { id: 'vehicles', name: 'Vehicles & Bikes', icon: 'Car', count: 0 },
+  { id: 'property', name: 'Houses & Properties', icon: 'Building2', count: 0 },
+  { id: 'mobiles', name: 'Mobiles & Tech', icon: 'Smartphone', count: 0 },
+  { id: 'electronics', name: 'Electronics & Appliances', icon: 'Tv', count: 0 },
+  { id: 'jobs', name: 'Jobs & Careers', icon: 'Briefcase', count: 0 },
+  { id: 'business', name: 'Business', icon: 'Store', count: 0 },
+  { id: 'services', name: 'Local Services', icon: 'Wrench', count: 0 },
+  { id: 'buy-sell', name: 'Buy & Sell', icon: 'ShoppingBag', count: 0 },
+  { id: 'furniture', name: 'Home & Furniture', icon: 'Sofa', count: 0 },
+  { id: 'commercial', name: 'Commercial & Industrial', icon: 'Factory', count: 0 },
+  { id: 'community', name: 'Community', icon: 'Users', count: 0 },
 ];
 
 const DEFAULT_HOME_LOCATIONS = [
@@ -64,41 +67,114 @@ const CATEGORY_COLOR_MAP: Record<string, { bg: string; text: string; ring: strin
   community: { bg: 'bg-teal-500/10', text: 'text-teal-600', ring: 'group-hover:border-teal-500' },
 };
 
+function formatHomeAds(items: any[]): AdItem[] {
+  return items.slice(0, 8).map((item: any) => {
+    let lType = (item.listing_type || '').toLowerCase();
+    if (!lType && item.description) {
+      if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month/i.test(item.description)) {
+        lType = 'rent';
+      } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
+        lType = 'new';
+      }
+    }
+    const priceVal = Number(item.price || 0);
+    let displayPrice = `₹${priceVal.toLocaleString()}`;
+    if (lType === 'free') {
+      displayPrice = 'FREE';
+    } else if (item.price_text) {
+      displayPrice = item.price_text;
+    } else if (lType === 'rent') {
+      const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
+      displayPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+    }
+
+    const rawCat = item.category_id || item.category || '';
+    const rawSub = item.subcategory_id || item.subcategory || '';
+    const resolvedCat = resolvePrimaryCategory(rawCat, rawSub);
+
+    return {
+      id: item.id || item.slug,
+      title: item.title,
+      price: displayPrice,
+      location: item.location_name || item.location_text || 'Hosur',
+      image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+      category: resolvedCat,
+      postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
+      status: item.status || 'active',
+      views_count: item.views_count || 1,
+    };
+  });
+}
+
+function computeHomeCategoryCounts(items: any[]): CategoryItem[] {
+  const categoryCounts: Record<string, number> = {};
+  DEFAULT_CATEGORIES.forEach(c => { categoryCounts[c.id] = 0; });
+
+  items.forEach((ad: any) => {
+    const rawCat = ad.category_id || ad.category || '';
+    const rawSub = ad.subcategory_id || ad.subcategory || '';
+    const resolved = resolvePrimaryCategory(rawCat, rawSub);
+    
+    if (categoryCounts[resolved] !== undefined) {
+      categoryCounts[resolved] += 1;
+    } else {
+      categoryCounts['buy-sell'] = (categoryCounts['buy-sell'] || 0) + 1;
+    }
+  });
+
+  return DEFAULT_CATEGORIES.map(cat => ({
+    ...cat,
+    count: categoryCounts[cat.id] || 0
+  }));
+}
+
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('Hosur');
   const [locations, setLocations] = useState<string[]>(DEFAULT_HOME_LOCATIONS);
-  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORIES);
-  const [latestAds, setLatestAds] = useState<AdItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Instant frame 0 hydration from local storage
+  const [categories, setCategories] = useState<CategoryItem[]>(() => {
+    const local = getLocalAds();
+    return computeHomeCategoryCounts(local);
+  });
+  const [latestAds, setLatestAds] = useState<AdItem[]>(() => {
+    const local = getLocalAds();
+    return formatHomeAds(local);
+  });
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchHomeData = async () => {
-      setLoading(true);
       try {
-        // 1. Fetch real ads from Supabase & local storage
-        let remoteAds = [];
+        // Fast non-blocking remote query with 1.2s timeout
+        let remoteAds: any[] = [];
+        let remoteFetchSucceeded = false;
         try {
-          const { data: adsData, error: adsError } = await (supabase.from('ads') as any)
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200));
+          const queryPromise = (supabase.from('ads') as any)
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(20);
-          if (!adsError && Array.isArray(adsData)) {
-            remoteAds = adsData.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
+            .limit(30);
+
+          const res: any = await Promise.race([queryPromise, timeoutPromise]);
+          if (res && !res.error && Array.isArray(res.data)) {
+            remoteAds = res.data.filter((a: any) => a.status !== 'deleted' && a.status !== 'archived');
+            remoteFetchSucceeded = true;
           }
-        } catch (e) {
-          console.warn('Home ads fetch notice:', e);
+        } catch {
+          // Keep local instantly loaded ads
         }
 
-        // Filter out tombstoned deleted ads
+        if (!isMounted) return;
+
         const deletedIds = getDeletedAdIds();
         remoteAds = remoteAds.filter((a: any) => !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug)));
 
-        // Purge stale local ads that were deleted in Supabase
         const liveRemoteIds = new Set(remoteAds.map((r: any) => r.id));
-        const localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds).filter((a: any) => 
+        const localAds = purgeDeletedAndStaleLocalAds(liveRemoteIds, remoteFetchSucceeded).filter((a: any) => 
           !deletedIds.has(a.id) && (!a.slug || !deletedIds.has(a.slug))
         );
 
@@ -116,80 +192,28 @@ export default function Home() {
 
         const combinedList = Array.from(mergedMap.values());
         if (combinedList.length > 0) {
-          const mappedAds: AdItem[] = combinedList.slice(0, 8).map((item: any) => {
-            let lType = (item.listing_type || '').toLowerCase();
-            if (!lType && item.description) {
-              if (/Listing Type:\s*Rent/i.test(item.description) || /per day|per month/i.test(item.description)) {
-                lType = 'rent';
-              } else if (/Listing Type:\s*Sell New/i.test(item.description)) {
-                lType = 'new';
-              }
-            }
-            const priceVal = Number(item.price || 0);
-            let displayPrice = `₹${priceVal.toLocaleString()}`;
-            if (lType === 'free') {
-              displayPrice = 'FREE';
-            } else if (item.price_text) {
-              displayPrice = item.price_text;
-            } else if (lType === 'rent') {
-              const period = (item.attributes?.rent_period || 'Month').replace(/^Per\s+/i, '');
-              displayPrice = `₹${priceVal.toLocaleString()} / ${period}`;
-            }
-
-            return {
-              id: item.id || item.slug,
-              title: item.title,
-              price: displayPrice,
-              location: item.location_name || item.location_text || 'Hosur',
-              image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
-              category: item.category_id || 'General',
-              postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
-            };
-          });
-          setLatestAds(mappedAds);
+          setLatestAds(formatHomeAds(combinedList));
+          setCategories(computeHomeCategoryCounts(combinedList));
         }
 
-        // 2. Fetch categories and calculate live counts across all listings
-        const { data: allAdsCount } = await (supabase.from('ads') as any)
-          .select('category_id')
-          .neq('status', 'deleted');
-
-        const { data: catData } = await (supabase.from('categories') as any)
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true });
-
-        if (catData && catData.length > 0) {
-          const updated = catData.map((c: any) => {
-            const count = allAdsCount?.filter((a: any) => a.category_id === c.id).length || 0;
-            return {
-              id: c.id,
-              name: c.name,
-              icon: c.icon || 'Tag',
-              count,
-            };
-          });
-          setCategories(updated);
-        }
-
-        // 3. Fetch live locations from Supabase
-        const { data: locData } = await (supabase.from('locations') as any)
+        // Parallel background location fetch
+        (supabase.from('locations') as any)
           .select('name')
           .eq('is_active', true)
-          .order('name', { ascending: true });
-
-        if (locData && locData.length > 0) {
-          const names = locData.map((l: any) => l.name);
-          setLocations(names);
-        }
+          .order('name', { ascending: true })
+          .then(({ data: locData }: any) => {
+            if (isMounted && locData && locData.length > 0) {
+              setLocations(locData.map((l: any) => l.name));
+            }
+          })
+          .catch(() => {});
       } catch (err) {
-        console.error('Error fetching home data:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Home background revalidation notice:', err);
       }
     };
 
     fetchHomeData();
+    return () => { isMounted = false; };
   }, []);
 
   const handleLocationChange = (newLoc: string) => {
@@ -392,13 +416,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(n => (
-              <div key={n} className="bg-slate-100 animate-pulse rounded-2xl h-80" />
-            ))}
-          </div>
-        ) : latestAds.length > 0 ? (
+        {latestAds.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {latestAds.map(ad => (
               <AdCard key={ad.id} ad={ad} />
