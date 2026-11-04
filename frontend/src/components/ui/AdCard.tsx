@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, Tag, Sparkles, Eye, CheckCircle2 } from 'lucide-react';
+import { MapPin, Clock, Tag, Sparkles, Eye, CheckCircle2, Camera } from 'lucide-react';
 import { getCategoryDisplayName } from '../../data/categories';
 
 interface AdCardProps {
@@ -9,6 +9,7 @@ interface AdCardProps {
     price: string;
     location: string;
     image: string;
+    images?: string[];
     category: string;
     subcategory?: string;
     listingType?: string;
@@ -20,7 +21,7 @@ interface AdCardProps {
 
 const LISTING_TYPE_BADGES: Record<string, { label: string; bg: string; text: string }> = {
   new: { label: 'Brand New', bg: 'bg-emerald-500/90', text: 'text-white' },
-  preowned: { label: 'Pre-owned', bg: 'bg-blue-600/90', text: 'text-white' },
+  preowned: { label: 'Used', bg: 'bg-blue-600/90', text: 'text-white' },
   rent: { label: 'For Rent', bg: 'bg-amber-500/95', text: 'text-white' },
   job: { label: 'Job Opening', bg: 'bg-purple-600/90', text: 'text-white' },
   service: { label: 'Service', bg: 'bg-cyan-600/90', text: 'text-white' },
@@ -73,6 +74,14 @@ export default function AdCard({ ad }: AdCardProps) {
           <Tag className="h-3 w-3 text-blue-600" />
           <span className="truncate max-w-[120px]">{categoryLabel}</span>
         </div>
+
+        {/* Photo Count Badge (Bottom-Right) */}
+        {ad.images && ad.images.length > 1 && (
+          <div className="absolute bottom-2.5 right-2.5 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white flex items-center gap-1 shadow-sm">
+            <Camera className="h-3 w-3" />
+            <span>{ad.images.length}</span>
+          </div>
+        )}
       </div>
 
       {/* Content Container */}

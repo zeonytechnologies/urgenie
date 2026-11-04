@@ -14,7 +14,10 @@ import {
   ShieldAlert,
   Check,
   Package,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -98,7 +101,10 @@ function mapDbAdToDisplayAd(data: any, sellerProfile?: any) {
     attributes: mergedAttrs,
     location: data.location_name || data.location_text || data.city || 'Hosur',
     postedAt: data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Recently',
-    image: data.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    image: (data.images && data.images[0]) || data.image || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    images: (Array.isArray(data.images) && data.images.length > 0)
+      ? data.images
+      : [(data.image || (data.images && data.images[0]) || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500')],
     description: data.description,
     condition: data.condition || '',
     seller: data.contact_name || sellerProfile?.full_name || 'Verified Seller',
@@ -134,6 +140,7 @@ export default function AdDetails() {
   const [reportReason, setReportReason] = useState('spam');
   const [reportDetails, setReportDetails] = useState('');
   const [reported, setReported] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Synchronous 0ms local hydration
   const initialAd = useMemo(() => findLocalAd(slug), [slug]);
@@ -141,6 +148,8 @@ export default function AdDetails() {
   const [loading, setLoading] = useState<boolean>(!initialAd);
 
   useEffect(() => {
+    setSelectedImageIndex(0);
+
     // If ad is already loaded from local cache, keep loading = false so user sees it in 0ms!
     if (initialAd) {
       setAd(initialAd);
@@ -171,10 +180,10 @@ export default function AdDetails() {
         let data: any = null;
         let sellerProfile: any = null;
 
-        // Try Supabase with rapid 600ms race
+        // Try Supabase with resilient timeout
         try {
           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 600));
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
           const query = (supabase.from('ads') as any).select('*');
           const fetchPromise = isUuid 
             ? query.or(`id.eq.${slug},slug.eq.${slug}`).maybeSingle()
@@ -391,7 +400,11 @@ export default function AdDetails() {
           {/* Image Gallery */}
           <div className="bg-white rounded-3xl p-3 border border-slate-200/80 shadow-xs mb-6">
             <div className="aspect-[4/3] md:aspect-[16/10] bg-slate-100 rounded-2xl overflow-hidden relative group">
-              <img src={ad.image} alt={ad.title} className="w-full h-full object-cover" />
+              <img 
+                src={(ad.images && ad.images[selectedImageIndex]) || ad.image} 
+                alt={ad.title} 
+                className="w-full h-full object-cover" 
+              />
               
               {/* Sold Out Watermark Stamp */}
               {ad.status === 'sold' && (
@@ -400,6 +413,32 @@ export default function AdDetails() {
                     SOLD OUT
                   </div>
                 </div>
+              )}
+
+              {/* Prev / Next photo navigation if multiple photos */}
+              {ad.images && ad.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : ad.images.length - 1))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
+                    title="Previous photo"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImageIndex((prev) => (prev < ad.images.length - 1 ? prev + 1 : 0))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
+                    title="Next photo"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>{selectedImageIndex + 1} / {ad.images.length}</span>
+                  </div>
+                </>
               )}
 
               <div className="absolute top-4 right-4 flex gap-2">
@@ -421,6 +460,24 @@ export default function AdDetails() {
                 </button>
               </div>
             </div>
+
+            {/* Thumbnail carousel strip below main image */}
+            {ad.images && ad.images.length > 1 && (
+              <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 px-1">
+                {ad.images.map((imgUrl: string, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all cursor-pointer ${
+                      selectedImageIndex === idx ? 'border-blue-600 ring-2 ring-blue-500/30 scale-105' : 'border-slate-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Sold Out Alert Banner */}

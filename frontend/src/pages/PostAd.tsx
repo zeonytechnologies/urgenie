@@ -13,7 +13,14 @@ import {
   Search,
   MapPin,
   X,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Lock,
+  Mail,
+  User,
+  Phone,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -42,7 +49,8 @@ const DEFAULT_LOCATIONS = [
 ];
 
 export default function PostAd() {
-  const { user, profile } = useAuth();
+  const { user, profile, signIn, signUp } = useAuth();
+  const DRAFT_KEY = 'urgenie_post_ad_draft';
 
   // Wizard Steps:
   // 1 = Select Expatriates Option & Subcategory
@@ -51,6 +59,18 @@ export default function PostAd() {
   // 4 = Review & Instant Publish
   // 5 = Success Screen
   const [step, setStep] = useState(1);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+
+  // Auth Modal States for Unauthenticated Publishing
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'register' | 'login'>('register');
+  const [authModalName, setAuthModalName] = useState('');
+  const [authModalPhone, setAuthModalPhone] = useState('');
+  const [authModalEmail, setAuthModalEmail] = useState('');
+  const [authModalPassword, setAuthModalPassword] = useState('');
+  const [showModalPassword, setShowModalPassword] = useState(false);
+  const [authModalLoading, setAuthModalLoading] = useState(false);
+  const [authModalError, setAuthModalError] = useState<string | null>(null);
 
   // Expatriates Choice State
   const [selectedOptionId, setSelectedOptionId] = useState<string>('sell-item');
@@ -69,11 +89,12 @@ export default function PostAd() {
   const [condition, setCondition] = useState('good');
   const [location, setLocation] = useState('Hosur Town Center');
   const [locationsList] = useState<string[]>(DEFAULT_LOCATIONS);
-  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600');
+  const [images, setImages] = useState<string[]>([]);
+  const [reviewPhotoIndex, setReviewPhotoIndex] = useState(0);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [sellerName, setSellerName] = useState(profile?.full_name || 'Verified User');
-  const [phone, setPhone] = useState(profile?.phone || '9876543210');
+  const [sellerName, setSellerName] = useState(profile?.full_name || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
   const [allowWhatsapp, setAllowWhatsapp] = useState(true);
 
   // Submission States
@@ -202,13 +223,289 @@ export default function PostAd() {
   const [serviceCoverage, setServiceCoverage] = useState('All Hosur & SIPCOT Areas');
 
 
-  // Sync profile data
+  const saveDraftToStorage = (targetStep?: number) => {
+    try {
+      const draft = {
+        step: targetStep !== undefined ? targetStep : step,
+        selectedOptionId,
+        selectedSubcategorySlug,
+        title,
+        description,
+        price,
+        isNegotiable,
+        condition,
+        location,
+        images,
+        sellerName,
+        phone,
+        allowWhatsapp,
+        // Category Specs
+        vehicleBrand,
+        vehicleModel,
+        vehicleYear,
+        vehicleFuel,
+        vehicleKm,
+        vehicleOwners,
+        vehicleTransmission,
+        itemCondition,
+        itemWarranty,
+        itemBillBox,
+        wantedUrgency,
+        wantedCondition,
+        jobTitle,
+        jobCompany,
+        jobIndustry,
+        jobExperience,
+        jobType,
+        jobEducation,
+        jobNoticePeriod,
+        jobWorkMode,
+        jobSkills,
+        tempDuration,
+        tempPayBasis,
+        tempHours,
+        tempUrgency,
+        housingOfferType,
+        propertyBhk,
+        propertyArea,
+        propertyFurnishing,
+        propertyFloor,
+        propertyFacing,
+        propertyDeposit,
+        propertyTenantPref,
+        propertyAvailableFrom,
+        exchangeCurrentLoc,
+        exchangeDestination,
+        exchangeDuration,
+        seekTenantType,
+        seekPreferredAreas,
+        commercialKind,
+        commercialPowerLoad,
+        commercialParking,
+        commercialLoadingDock,
+        plotType,
+        plotSize,
+        plotRoadWidth,
+        plotApproval,
+        plotFencing,
+        childcareRole,
+        childcareAgeGroup,
+        childcareExperience,
+        childcareCert,
+        childcareTiming,
+        lostFoundStatus,
+        lostFoundDate,
+        lostFoundLocation,
+        lostFoundReward,
+        rideOrigin,
+        rideDestination,
+        rideSchedule,
+        rideVehicle,
+        rideSeats,
+        rideCostShare,
+        petType,
+        petAgeGender,
+        petHealth,
+        sportName,
+        sportLevel,
+        sportTime,
+        musicRole,
+        musicGenre,
+        eventName,
+        eventDate,
+        eventVenue,
+        learnSubject,
+        learnNativeLang,
+        learnTargetLang,
+        learnMode,
+        learnLevel,
+        serviceSpecialty,
+        servicePricingModel,
+        serviceWarranty,
+        serviceCoverage,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (e) {
+      console.warn('Draft save warning:', e);
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {}
+    setRestoredFromDraft(false);
+    setStep(1);
+    setTitle('');
+    setDescription('');
+    setPrice('');
+    setImages([]);
+    setReviewPhotoIndex(0);
+    setSellerName(profile?.full_name || '');
+    setPhone(profile?.phone || '');
+    setVehicleBrand('');
+    setVehicleModel('');
+    setVehicleYear('');
+    setVehicleKm('');
+    setJobTitle('');
+    setJobCompany('');
+    setPropertyBhk('');
+    setPropertyArea('');
+  };
+
+  // Restore draft on initial mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d && (d.title || d.description || (d.images && d.images.length > 0) || d.selectedOptionId)) {
+          if (d.step && d.step >= 1 && d.step <= 4) setStep(d.step);
+          if (d.selectedOptionId) setSelectedOptionId(d.selectedOptionId);
+          if (d.selectedSubcategorySlug) setSelectedSubcategorySlug(d.selectedSubcategorySlug);
+          if (d.title) setTitle(d.title);
+          if (d.description) setDescription(d.description);
+          if (d.price !== undefined) setPrice(d.price);
+          if (d.isNegotiable !== undefined) setIsNegotiable(d.isNegotiable);
+          if (d.condition) setCondition(d.condition);
+          if (d.location) setLocation(d.location);
+          if (Array.isArray(d.images)) setImages(d.images);
+          if (d.sellerName) setSellerName(d.sellerName);
+          if (d.phone) setPhone(d.phone);
+          if (d.allowWhatsapp !== undefined) setAllowWhatsapp(d.allowWhatsapp);
+
+          // Category Specs
+          if (d.vehicleBrand) setVehicleBrand(d.vehicleBrand);
+          if (d.vehicleModel) setVehicleModel(d.vehicleModel);
+          if (d.vehicleYear) setVehicleYear(d.vehicleYear);
+          if (d.vehicleFuel) setVehicleFuel(d.vehicleFuel);
+          if (d.vehicleKm) setVehicleKm(d.vehicleKm);
+          if (d.vehicleOwners) setVehicleOwners(d.vehicleOwners);
+          if (d.vehicleTransmission) setVehicleTransmission(d.vehicleTransmission);
+          if (d.itemCondition) setItemCondition(d.itemCondition);
+          if (d.itemWarranty) setItemWarranty(d.itemWarranty);
+          if (d.itemBillBox) setItemBillBox(d.itemBillBox);
+          if (d.wantedUrgency) setWantedUrgency(d.wantedUrgency);
+          if (d.wantedCondition) setWantedCondition(d.wantedCondition);
+          if (d.jobTitle) setJobTitle(d.jobTitle);
+          if (d.jobCompany) setJobCompany(d.jobCompany);
+          if (d.jobIndustry) setJobIndustry(d.jobIndustry);
+          if (d.jobExperience) setJobExperience(d.jobExperience);
+          if (d.jobType) setJobType(d.jobType);
+          if (d.jobEducation) setJobEducation(d.jobEducation);
+          if (d.jobNoticePeriod) setJobNoticePeriod(d.jobNoticePeriod);
+          if (d.jobWorkMode) setJobWorkMode(d.jobWorkMode);
+          if (d.jobSkills) setJobSkills(d.jobSkills);
+          if (d.tempDuration) setTempDuration(d.tempDuration);
+          if (d.tempPayBasis) setTempPayBasis(d.tempPayBasis);
+          if (d.tempHours) setTempHours(d.tempHours);
+          if (d.tempUrgency) setTempUrgency(d.tempUrgency);
+          if (d.housingOfferType) setHousingOfferType(d.housingOfferType);
+          if (d.propertyBhk) setPropertyBhk(d.propertyBhk);
+          if (d.propertyArea) setPropertyArea(d.propertyArea);
+          if (d.propertyFurnishing) setPropertyFurnishing(d.propertyFurnishing);
+          if (d.propertyFloor) setPropertyFloor(d.propertyFloor);
+          if (d.propertyFacing) setPropertyFacing(d.propertyFacing);
+          if (d.propertyDeposit) setPropertyDeposit(d.propertyDeposit);
+          if (d.propertyTenantPref) setPropertyTenantPref(d.propertyTenantPref);
+          if (d.propertyAvailableFrom) setPropertyAvailableFrom(d.propertyAvailableFrom);
+          if (d.exchangeCurrentLoc) setExchangeCurrentLoc(d.exchangeCurrentLoc);
+          if (d.exchangeDestination) setExchangeDestination(d.exchangeDestination);
+          if (d.exchangeDuration) setExchangeDuration(d.exchangeDuration);
+          if (d.seekTenantType) setSeekTenantType(d.seekTenantType);
+          if (d.seekPreferredAreas) setSeekPreferredAreas(d.seekPreferredAreas);
+          if (d.commercialKind) setCommercialKind(d.commercialKind);
+          if (d.commercialPowerLoad) setCommercialPowerLoad(d.commercialPowerLoad);
+          if (d.commercialParking) setCommercialParking(d.commercialParking);
+          if (d.commercialLoadingDock) setCommercialLoadingDock(d.commercialLoadingDock);
+          if (d.plotType) setPlotType(d.plotType);
+          if (d.plotSize) setPlotSize(d.plotSize);
+          if (d.plotRoadWidth) setPlotRoadWidth(d.plotRoadWidth);
+          if (d.plotApproval) setPlotApproval(d.plotApproval);
+          if (d.plotFencing) setPlotFencing(d.plotFencing);
+          if (d.childcareRole) setChildcareRole(d.childcareRole);
+          if (d.childcareAgeGroup) setChildcareAgeGroup(d.childcareAgeGroup);
+          if (d.childcareExperience) setChildcareExperience(d.childcareExperience);
+          if (d.childcareCert) setChildcareCert(d.childcareCert);
+          if (d.childcareTiming) setChildcareTiming(d.childcareTiming);
+          if (d.lostFoundStatus) setLostFoundStatus(d.lostFoundStatus);
+          if (d.lostFoundDate) setLostFoundDate(d.lostFoundDate);
+          if (d.lostFoundLocation) setLostFoundLocation(d.lostFoundLocation);
+          if (d.lostFoundReward) setLostFoundReward(d.lostFoundReward);
+          if (d.rideOrigin) setRideOrigin(d.rideOrigin);
+          if (d.rideDestination) setRideDestination(d.rideDestination);
+          if (d.rideSchedule) setRideSchedule(d.rideSchedule);
+          if (d.rideVehicle) setRideVehicle(d.rideVehicle);
+          if (d.rideSeats) setRideSeats(d.rideSeats);
+          if (d.rideCostShare) setRideCostShare(d.rideCostShare);
+          if (d.petType) setPetType(d.petType);
+          if (d.petAgeGender) setPetAgeGender(d.petAgeGender);
+          if (d.petHealth) setPetHealth(d.petHealth);
+          if (d.sportName) setSportName(d.sportName);
+          if (d.sportLevel) setSportLevel(d.sportLevel);
+          if (d.sportTime) setSportTime(d.sportTime);
+          if (d.musicRole) setMusicRole(d.musicRole);
+          if (d.musicGenre) setMusicGenre(d.musicGenre);
+          if (d.eventName) setEventName(d.eventName);
+          if (d.eventDate) setEventDate(d.eventDate);
+          if (d.eventVenue) setEventVenue(d.eventVenue);
+          if (d.learnSubject) setLearnSubject(d.learnSubject);
+          if (d.learnNativeLang) setLearnNativeLang(d.learnNativeLang);
+          if (d.learnTargetLang) setLearnTargetLang(d.learnTargetLang);
+          if (d.learnMode) setLearnMode(d.learnMode);
+          if (d.learnLevel) setLearnLevel(d.learnLevel);
+          if (d.serviceSpecialty) setServiceSpecialty(d.serviceSpecialty);
+          if (d.servicePricingModel) setServicePricingModel(d.servicePricingModel);
+          if (d.serviceWarranty) setServiceWarranty(d.serviceWarranty);
+          if (d.serviceCoverage) setServiceCoverage(d.serviceCoverage);
+
+          setRestoredFromDraft(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Draft restore error:', e);
+    }
+  }, []);
+
+  // Sync profile data when available or updated
   useEffect(() => {
     if (profile) {
-      if (profile.full_name) setSellerName(profile.full_name);
-      if (profile.phone) setPhone(profile.phone);
+      if (profile.full_name && (!sellerName || sellerName === 'Verified User')) {
+        setSellerName(profile.full_name);
+      }
+      if (profile.phone && (!phone || phone === '9876543210')) {
+        setPhone(profile.phone);
+      }
     }
   }, [profile]);
+
+  // Debounced draft auto-save
+  useEffect(() => {
+    if (step === 5) return;
+    const timer = setTimeout(() => {
+      saveDraftToStorage();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    step, selectedOptionId, selectedSubcategorySlug, title, description, price, isNegotiable,
+    condition, location, images, sellerName, phone, allowWhatsapp, vehicleBrand, vehicleModel,
+    vehicleYear, vehicleFuel, vehicleKm, vehicleOwners, vehicleTransmission, itemCondition,
+    itemWarranty, itemBillBox, wantedUrgency, wantedCondition, jobTitle, jobCompany,
+    jobIndustry, jobExperience, jobType, jobEducation, jobNoticePeriod, jobWorkMode, jobSkills,
+    tempDuration, tempPayBasis, tempHours, tempUrgency, housingOfferType, propertyBhk,
+    propertyArea, propertyFurnishing, propertyFloor, propertyFacing, propertyDeposit,
+    propertyTenantPref, propertyAvailableFrom, exchangeCurrentLoc, exchangeDestination,
+    exchangeDuration, seekTenantType, seekPreferredAreas, commercialKind, commercialPowerLoad,
+    commercialParking, commercialLoadingDock, plotType, plotSize, plotRoadWidth, plotApproval,
+    plotFencing, childcareRole, childcareAgeGroup, childcareExperience, childcareCert,
+    childcareTiming, lostFoundStatus, lostFoundDate, lostFoundLocation, lostFoundReward,
+    rideOrigin, rideDestination, rideSchedule, rideVehicle, rideSeats, rideCostShare,
+    petType, petAgeGender, petHealth, sportName, sportLevel, sportTime, musicRole,
+    musicGenre, eventName, eventDate, eventVenue, learnSubject, learnNativeLang,
+    learnTargetLang, learnMode, learnLevel, serviceSpecialty, servicePricingModel,
+    serviceWarranty, serviceCoverage
+  ]);
 
   // Current selected option metadata
   const currentOption = getOptionById(selectedOptionId) || ALL_EXPATRIATES_OPTIONS[0];
@@ -236,83 +533,112 @@ export default function PostAd() {
     setStep(2);
   };
 
-  // Image Upload handler with instant HTML5 Canvas compression
+  // Multiple Images Upload handler with instant HTML5 Canvas compression
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('Image size must be less than 10MB');
+    if (images.length + files.length > 10) {
+      setUploadError(`You can upload up to 10 photos in total (${images.length} already added).`);
       return;
     }
 
     setUploadingImage(true);
     setUploadError(null);
 
-    try {
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxDim = 1200;
-            let width = img.width;
-            let height = img.height;
-            if (width > height) {
-              if (width > maxDim) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              }
-            } else {
-              if (height > maxDim) {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL('image/jpeg', 0.82));
-            } else {
-              resolve(event.target?.result as string);
-            }
-          };
-          img.onerror = () => resolve(event.target?.result as string);
-          img.src = event.target?.result as string;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    const uploadedUrls: string[] = [];
 
-      let finalUrl = base64Data;
-      try {
-        const fileName = `ad_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
-        const res = await fetch(base64Data);
-        const blob = await res.blob();
-
-        const { error: storageError } = await supabase.storage
-          .from('ad-images')
-          .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
-
-        if (!storageError) {
-          const { data: publicData } = supabase.storage.from('ad-images').getPublicUrl(fileName);
-          if (publicData?.publicUrl) {
-            finalUrl = publicData.publicUrl;
-          }
-        }
-      } catch (err) {
-        console.warn('Storage bucket fallback:', err);
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        setUploadError(`"${file.name}" exceeds 10MB limit and was skipped.`);
+        continue;
       }
 
-      setImageUrl(finalUrl);
-    } catch (err: any) {
-      setUploadError(err.message || 'Error processing image');
-    } finally {
-      setUploadingImage(false);
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const maxDim = 1200;
+              let width = img.width;
+              let height = img.height;
+              if (width > height) {
+                if (width > maxDim) {
+                  height = Math.round((height * maxDim) / width);
+                  width = maxDim;
+                }
+              } else {
+                if (height > maxDim) {
+                  width = Math.round((width * maxDim) / height);
+                  height = maxDim;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.82));
+              } else {
+                resolve(event.target?.result as string);
+              }
+            };
+            img.onerror = () => resolve(event.target?.result as string);
+            img.src = event.target?.result as string;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        let finalUrl = base64Data;
+        try {
+          const fileName = `ad_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+          const res = await fetch(base64Data);
+          const blob = await res.blob();
+
+          const { error: storageError } = await supabase.storage
+            .from('ad-images')
+            .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+
+          if (!storageError) {
+            const { data: publicData } = supabase.storage.from('ad-images').getPublicUrl(fileName);
+            if (publicData?.publicUrl) {
+              finalUrl = publicData.publicUrl;
+            }
+          }
+        } catch (err) {
+          console.warn('Storage bucket fallback:', err);
+        }
+
+        uploadedUrls.push(finalUrl);
+      } catch (err: any) {
+        setUploadError(err.message || 'Error processing image');
+      }
     }
+
+    if (uploadedUrls.length > 0) {
+      setImages((prev) => [...prev, ...uploadedUrls]);
+    }
+    setUploadingImage(false);
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    if (reviewPhotoIndex >= images.length - 1) {
+      setReviewPhotoIndex(Math.max(0, images.length - 2));
+    }
+  };
+
+  const handleSetPrimaryImage = (indexToPrimary: number) => {
+    setImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(indexToPrimary, 1);
+      return [item, ...copy];
+    });
+    setReviewPhotoIndex(0);
   };
 
   // Compile Tailored Attributes Summary for Description
@@ -424,17 +750,118 @@ export default function PostAd() {
     }
   };
 
-  // Submit Ad to Supabase with local fallback
-  const handleSubmitAd = async (e: FormEvent) => {
-    e.preventDefault();
+  // Submit Ad Entrypoint
+  const handleSubmitAd = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
 
-    if (!user) {
-      setError('You must be signed in to publish an advertisement in Hosur. Please sign in.');
+    const savedAuth = localStorage.getItem('urgenie_auth_user');
+    const hasAuth = user || (savedAuth && JSON.parse(savedAuth).user);
+
+    if (!hasAuth) {
+      saveDraftToStorage(4);
+      setAuthModalName(sellerName !== 'Verified User' ? sellerName : '');
+      setAuthModalPhone(phone !== '9876543210' ? phone : '');
+      setAuthModalTab('register');
+      setShowAuthModal(true);
       return;
     }
 
+    await executeSubmitAd();
+  };
+
+  const handleAuthModalRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setAuthModalError(null);
+
+    const trimmedName = authModalName.trim();
+    if (!trimmedName) {
+      setAuthModalError('Please enter your full name');
+      return;
+    }
+    const cleanModalPhone = authModalPhone.trim().replace(/\D/g, '');
+    if (cleanModalPhone.length < 10) {
+      setAuthModalError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    const trimmedEmail = authModalEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setAuthModalError('Please enter a valid email address');
+      return;
+    }
+    if (authModalPassword.length < 6) {
+      setAuthModalError('Password must be at least 6 characters');
+      return;
+    }
+
+    setAuthModalLoading(true);
+    const { error: regError } = await signUp(trimmedEmail, authModalPassword, {
+      full_name: trimmedName,
+      phone: cleanModalPhone,
+      city: location || 'Hosur Town, Tamil Nadu',
+      role: 'user',
+    });
+    setAuthModalLoading(false);
+
+    if (regError) {
+      setAuthModalError(regError);
+      return;
+    }
+
+    setSellerName(trimmedName);
+    setPhone(cleanModalPhone);
+    setShowAuthModal(false);
+
+    // Immediately execute publishing
+    await executeSubmitAd(trimmedName, cleanModalPhone);
+  };
+
+  const handleAuthModalLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    setAuthModalError(null);
+
+    const trimmedEmail = authModalEmail.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setAuthModalError('Please enter your email address');
+      return;
+    }
+    if (!authModalPassword) {
+      setAuthModalError('Please enter your password');
+      return;
+    }
+
+    setAuthModalLoading(true);
+    const { error: loginError } = await signIn(trimmedEmail, authModalPassword);
+    setAuthModalLoading(false);
+
+    if (loginError) {
+      setAuthModalError(loginError);
+      return;
+    }
+
+    setShowAuthModal(false);
+
+    // Immediately execute publishing
+    await executeSubmitAd();
+  };
+
+  const executeSubmitAd = async (overrideName?: string, overridePhone?: string) => {
+    setError(null);
     setSubmitting(true);
+
+    const savedAuth = localStorage.getItem('urgenie_auth_user');
+    let activeUser = user;
+    let activeProfile = profile;
+    if (!activeUser && savedAuth) {
+      try {
+        const parsed = JSON.parse(savedAuth);
+        activeUser = parsed.user || null;
+        activeProfile = parsed.profile || null;
+      } catch {}
+    }
+
+    const effectiveSellerName = overrideName || sellerName.trim() || activeProfile?.full_name || 'Verified User';
+    const effectivePhone = overridePhone || phone.trim() || activeProfile?.phone || '9876543210';
 
     const generatedSlug = title
       .toLowerCase()
@@ -450,7 +877,7 @@ export default function PostAd() {
       ? 'Free'
       : `₹${Number(numPrice).toLocaleString()}`;
 
-    let targetUserId = user.id;
+    let targetUserId = activeUser?.id || 'd12fc73e-2b3c-4371-b22c-ce3181ec864a';
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUserId || '');
 
     if (isUuid) {
@@ -463,11 +890,11 @@ export default function PostAd() {
         if (!pCheck) {
           await (supabase.from('profiles') as any).upsert({
             id: targetUserId,
-            full_name: sellerName.trim() || profile?.full_name || 'Verified User',
-            email: user.email || `${targetUserId}@urgenie.local`,
-            phone: phone.trim() || profile?.phone || '9876543210',
+            full_name: effectiveSellerName,
+            email: activeUser?.email || `${targetUserId}@urgenie.local`,
+            phone: effectivePhone,
             city: location || 'Hosur Town Center, Tamil Nadu',
-            role: profile?.role || 'user',
+            role: activeProfile?.role || 'user',
           });
         }
       } catch (err) {
@@ -617,10 +1044,10 @@ export default function PostAd() {
       condition: condition,
       location_name: location,
       location_text: location,
-      contact_name: sellerName.trim() || profile?.full_name || 'Verified User',
-      contact_phone: phone.trim() || profile?.phone || '',
+      contact_name: effectiveSellerName,
+      contact_phone: effectivePhone,
       allow_whatsapp: allowWhatsapp,
-      images: imageUrl ? [imageUrl] : ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600'],
+      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600'],
       status: 'active',
       views_count: 0,
       is_featured: false,
@@ -640,11 +1067,66 @@ export default function PostAd() {
       job_type: (resolvedCategoryId === 'jobs') && jobType ? jobType : null,
     };
 
-    const localId = `ad-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    let insertedId = adPayload.slug;
+
+    // Directly save to central Supabase database so all devices and website can see it
+    try {
+      const { data: dbData, error: dbErr } = await (supabase.from('ads') as any)
+        .insert([adPayload])
+        .select('id, slug')
+        .maybeSingle();
+
+      if (!dbErr && dbData) {
+        insertedId = dbData.slug || dbData.id || insertedId;
+        console.log('Ad successfully saved to central Supabase DB:', insertedId);
+      } else if (dbErr) {
+        console.warn('Full Supabase insert issue, attempting fallback with standard columns:', dbErr);
+        // Fallback with strictly standard columns in case custom columns don't exist in Supabase
+        const standardPayload = {
+          user_id: targetUserId,
+          category_id: resolvedCategoryId,
+          subcategory_id: selectedSubcategorySlug || null,
+          listing_type: currentOption.defaultListingType,
+          title: title.trim(),
+          slug: adPayload.slug,
+          description: fullDescription,
+          price: numPrice,
+          price_text: formattedPriceText,
+          is_negotiable: isNegotiable,
+          condition: condition,
+          location_name: location,
+          location_text: location,
+          contact_name: adPayload.contact_name,
+          contact_phone: adPayload.contact_phone,
+          allow_whatsapp: allowWhatsapp,
+          images: adPayload.images,
+          status: 'active',
+          views_count: 0,
+          is_featured: false,
+          attributes: attributesObj,
+        };
+
+        const { data: retryData, error: retryErr } = await (supabase.from('ads') as any)
+          .insert([standardPayload])
+          .select('id, slug')
+          .maybeSingle();
+
+        if (!retryErr && retryData) {
+          insertedId = retryData.slug || retryData.id || insertedId;
+          console.log('Ad saved via standard payload to central Supabase DB:', insertedId);
+        } else {
+          console.error('Remote Supabase insert could not complete:', retryErr || dbErr);
+        }
+      }
+    } catch (netErr) {
+      console.warn('Network / Supabase communication warning:', netErr);
+    }
+
+    const localId = insertedId || `ad-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const publishedAd = {
       id: localId,
       ...adPayload,
-      user_id: user.id, // associate with current authenticated user
+      user_id: targetUserId,
       created_at: new Date().toISOString(),
       category: resolvedCategoryId,
       subcategory: selectedSubcategorySlug,
@@ -652,22 +1134,20 @@ export default function PostAd() {
     };
     const finalId = publishedAd.slug || publishedAd.id;
 
-    // Instant local save (0ms)
+    // Cache locally as well
     try {
       const stored = JSON.parse(localStorage.getItem('urgenie_local_ads') || '[]');
-      const filtered = stored.filter((a: any) => a.id !== publishedAd.id && a.slug !== publishedAd.slug);
+      const filtered = stored.filter((a: any) => a.id !== publishedAd.id && a.slug !== publishedAd.slug && !String(a.id).startsWith('seed-'));
       localStorage.setItem('urgenie_local_ads', JSON.stringify([publishedAd, ...filtered]));
     } catch (storageErr) {
       console.warn('LocalStorage save warning:', storageErr);
     }
 
-    // Non-blocking background sync to Supabase (does not block user navigation)
+    // Clean up draft from localStorage since ad has now been published!
     try {
-      (supabase.from('ads') as any)
-        .insert([adPayload])
-        .then(() => {})
-        .catch(() => {});
+      localStorage.removeItem(DRAFT_KEY);
     } catch {}
+    setRestoredFromDraft(false);
 
     setSubmitting(false);
     setCreatedAdId(finalId);
@@ -716,6 +1196,32 @@ export default function PostAd() {
             </button>
           )}
         </div>
+
+        {/* Draft Restored Banner */}
+        {restoredFromDraft && step < 5 && (
+          <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold">
+                  {user ? `Welcome back, ${profile?.full_name || 'Seller'}! Your ad draft has been restored.` : 'Your recent advertisement details and photos are restored.'}
+                </p>
+                <p className="text-[11px] text-emerald-700">
+                  All your specifications and {images.length} photos are preserved. You can continue editing or publish directly.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="text-xs font-bold text-rose-600 hover:text-rose-800 underline px-2 py-1 self-end sm:self-center cursor-pointer"
+            >
+              Discard Draft & Start Fresh
+            </button>
+          </div>
+        )}
 
         {/* Selected Category Pill (Steps 2, 3, 4) */}
         {step >= 2 && step <= 4 && (
@@ -2044,55 +2550,87 @@ export default function PostAd() {
               </select>
             </div>
 
-            {/* Photos & Canvas Compression Uploader */}
+            {/* Multiple Photos & Canvas Compression Uploader */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Upload Photo
-              </label>
-              <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/60 flex flex-col sm:flex-row items-center gap-4">
-                {imageUrl ? (
-                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0 bg-slate-100 shadow-xs">
-                    <img src={imageUrl} alt="Ad Preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl('')}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white hover:bg-rose-600 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-24 h-24 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
-                    <Upload className="h-6 w-6" />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-800">
+                  Listing Photos <span className="text-slate-400 font-normal">({images.length}/10 photos)</span>
+                </label>
+                {images.length > 0 && (
+                  <span className="text-[11px] text-blue-600 font-medium">First photo will be the main cover</span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {/* Uploaded Photos Grid */}
+                {images.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {images.map((imgUrl, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-100 group shadow-xs">
+                        <img src={imgUrl} alt={`Uploaded ${idx + 1}`} className="w-full h-full object-cover" />
+                        
+                        {/* Primary / Cover Badge */}
+                        {idx === 0 ? (
+                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                            Cover
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryImage(idx)}
+                            className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 hover:bg-blue-600 text-white text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Set Cover
+                          </button>
+                        )}
+
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-rose-600 text-white transition-colors cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                <div className="flex-1 text-center sm:text-left">
-                  <label className="btn btn-outline py-1.5 px-3.5 text-xs font-bold cursor-pointer inline-flex items-center gap-1.5">
-                    {uploadingImage ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-                        <span>Compressing & Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3.5 w-3.5 text-blue-600" />
-                        <span>Choose Photo from Device</span>
-                      </>
-                    )}
+                {/* Dropzone / Upload button */}
+                {images.length < 10 && (
+                  <label className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-5 bg-slate-50/70 hover:bg-blue-50/30 transition-all flex flex-col items-center justify-center cursor-pointer text-center group">
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={handleImageUpload}
                       disabled={uploadingImage}
                       className="hidden"
                     />
+                    {uploadingImage ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-blue-600 py-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Compressing & uploading photos...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 py-1">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Upload className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-black text-slate-800">
+                          {images.length === 0 ? 'Click or Tap to Upload Photos (Select Multiple)' : 'Add More Photos'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Supports multiple JPG, PNG, WEBP. Max 10MB per image.
+                        </span>
+                      </div>
+                    )}
                   </label>
-                  <p className="text-[11px] text-slate-400 mt-1.5">
-                    Supports JPG, PNG, WEBP. Images are automatically optimized for fast mobile browsing.
-                  </p>
-                  {uploadError && <p className="text-xs text-rose-600 mt-1 font-semibold">{uploadError}</p>}
-                </div>
+                )}
+
+                {uploadError && <p className="text-xs text-rose-600 font-semibold">{uploadError}</p>}
               </div>
             </div>
 
@@ -2201,7 +2739,11 @@ export default function PostAd() {
           {/* Ad Live Preview Card */}
           <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-xs max-w-2xl mx-auto">
             <div className="relative aspect-video sm:aspect-[21/9] bg-slate-100 overflow-hidden">
-              <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+              <img 
+                src={images[reviewPhotoIndex] || images[0] || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600'} 
+                alt={title} 
+                className="w-full h-full object-cover" 
+              />
               <div className="absolute top-3 left-3 flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${currentSection.badgeBg}`}>
                   {currentSection.title}
@@ -2210,10 +2752,39 @@ export default function PostAd() {
                   {currentOption.badge}
                 </span>
               </div>
+              {images.length > 1 && (
+                <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>{reviewPhotoIndex + 1} / {images.length} Photos</span>
+                </div>
+              )}
               <div className="absolute bottom-3 right-3 bg-blue-600 text-white font-black text-base px-3 py-1.5 rounded-xl shadow-lg">
                 {currentOption.defaultListingType === 'free' ? 'Free' : `₹${Number(price || 0).toLocaleString()}`}
               </div>
             </div>
+
+            {/* Thumbnail Selector Strip for Multiple Photos */}
+            {images.length > 1 && (
+              <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+                {images.map((imgUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setReviewPhotoIndex(idx)}
+                    className={`relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all cursor-pointer ${
+                      reviewPhotoIndex === idx ? 'border-blue-600 ring-2 ring-blue-500/30 scale-105' : 'border-slate-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                    {idx === 0 && (
+                      <span className="absolute bottom-0 inset-x-0 bg-blue-600/90 text-[8px] font-bold text-white text-center py-0.5">
+                        Cover
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="p-5 sm:p-6 space-y-4">
               <div>
@@ -2241,6 +2812,49 @@ export default function PostAd() {
               </div>
             </div>
           </div>
+
+          {/* Guest User Posting Notice */}
+          {!user && (
+            <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-600 font-bold">
+                  <AlertCircle className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold">You are posting as a guest</p>
+                  <p className="text-[11px] text-amber-700">
+                    Clicking "Publish Advertisement Now" will prompt you to register or sign in. All your ad details and {images.length} photos are preserved!
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveDraftToStorage(4);
+                    setAuthModalName(sellerName !== 'Verified User' ? sellerName : '');
+                    setAuthModalPhone(phone !== '9876543210' ? phone : '');
+                    setAuthModalTab('register');
+                    setShowAuthModal(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer flex-1 sm:flex-initial"
+                >
+                  Register
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveDraftToStorage(4);
+                    setAuthModalTab('login');
+                    setShowAuthModal(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-white border border-amber-300 hover:bg-amber-50 text-amber-800 text-xs font-bold cursor-pointer flex-1 sm:flex-initial"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-4 border-t border-slate-200">
@@ -2300,12 +2914,270 @@ export default function PostAd() {
                 setTitle(''); 
                 setDescription(''); 
                 setPrice(''); 
+                setImages([]);
+                setReviewPhotoIndex(0);
                 setCreatedAdId(null); 
               }} 
               className="btn btn-outline px-6 py-2.5 font-bold text-xs"
             >
               Post Another Ad
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* AUTH MODAL FOR GUEST POSTING (ZERO LAG REGISTRATION & SIGN IN) */}
+      {/* ============================================================== */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 relative overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Top gradient accent */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">
+                <Sparkles className="h-4 w-4" />
+                <span>Almost Done!</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                {authModalTab === 'register' ? 'Register to Publish Ad' : 'Sign In to Publish Ad'}
+              </h3>
+              <p className="text-slate-500 text-xs mt-1">
+                {authModalTab === 'register'
+                  ? 'Enter your name, mobile, and password. Once registered, your ad will publish immediately with all details intact!'
+                  : 'Sign in to link this advertisement to your account.'}
+              </p>
+            </div>
+
+            {/* Preserved details indicator */}
+            <div className="mb-4 p-2.5 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-2 text-blue-900 text-[11px] font-medium">
+              <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span>Your ad specifications, description, and {images.length} photos are preserved and ready.</span>
+            </div>
+
+            {/* Tab Switcher */}
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => { setAuthModalTab('register'); setAuthModalError(null); }}
+                className={`py-2 rounded-lg transition-all cursor-pointer ${authModalTab === 'register' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Register (New User)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthModalTab('login'); setAuthModalError(null); }}
+                className={`py-2 rounded-lg transition-all cursor-pointer ${authModalTab === 'login' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Sign In (Existing)
+              </button>
+            </div>
+
+            {authModalError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-xs font-medium">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>{authModalError}</span>
+              </div>
+            )}
+
+            {authModalTab === 'register' ? (
+              <form onSubmit={handleAuthModalRegister} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Your Full Name *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={authModalName}
+                      onChange={(e) => setAuthModalName(e.target.value)}
+                      placeholder="e.g. Ramesh Kumar"
+                      className="input-field pl-9 pr-3 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Mobile Number (10 digits) *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={authModalPhone}
+                      onChange={(e) => setAuthModalPhone(e.target.value)}
+                      placeholder="e.g. 9876543210"
+                      className="input-field pl-9 pr-3 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={authModalEmail}
+                      onChange={(e) => setAuthModalEmail(e.target.value)}
+                      placeholder="e.g. ramesh@example.com"
+                      className="input-field pl-9 pr-3 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Password (min 6 chars) *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type={showModalPassword ? 'text' : 'password'}
+                      required
+                      value={authModalPassword}
+                      onChange={(e) => setAuthModalPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="input-field pl-9 pr-9 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowModalPassword(!showModalPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showModalPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authModalLoading}
+                  className="btn btn-primary w-full py-2.5 text-xs font-bold shadow-md mt-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {authModalLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Creating Account & Publishing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Register & Publish Advertisement</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleAuthModalLogin} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={authModalEmail}
+                      onChange={(e) => setAuthModalEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="input-field pl-9 pr-3 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type={showModalPassword ? 'text' : 'password'}
+                      required
+                      value={authModalPassword}
+                      onChange={(e) => setAuthModalPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="input-field pl-9 pr-9 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowModalPassword(!showModalPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showModalPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authModalLoading}
+                  className="btn btn-primary w-full py-2.5 text-xs font-bold shadow-md mt-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {authModalLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Signing In & Publishing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Sign In & Publish Advertisement</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* Links to dedicated pages if preferred */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <Link
+                to="/register?redirect=/post-ad"
+                onClick={() => saveDraftToStorage(4)}
+                className="text-blue-600 hover:underline font-semibold"
+              >
+                Open Full Register Page →
+              </Link>
+              <Link
+                to="/login?redirect=/post-ad"
+                onClick={() => saveDraftToStorage(4)}
+                className="text-slate-500 hover:underline font-semibold"
+              >
+                Open Full Sign In Page →
+              </Link>
+            </div>
           </div>
         </div>
       )}

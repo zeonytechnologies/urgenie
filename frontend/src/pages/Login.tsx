@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -9,11 +9,22 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAdDraft, setHasAdDraft] = useState(false);
 
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const searchRedirect = new URLSearchParams(location.search).get('redirect');
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('urgenie_post_ad_draft')) {
+        setHasAdDraft(true);
+      }
+    } catch {}
+  }, []);
+
+  const explicitFrom = (location.state as any)?.from?.pathname || searchRedirect || (hasAdDraft ? '/post-ad' : null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,7 +47,6 @@ export default function Login() {
     if (signInError) {
       setError(signInError);
     } else {
-      const explicitFrom = (location.state as any)?.from?.pathname || searchRedirect;
       if (explicitFrom) {
         navigate(explicitFrom, { replace: true });
       } else if (userRole === 'admin' || trimmedEmail === 'admin@urgenie.com') {
@@ -53,7 +63,7 @@ export default function Login() {
         {/* Top subtle brand accent line */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
             Sign In
           </h1>
@@ -61,6 +71,15 @@ export default function Login() {
             Enter your email and password to access your account
           </p>
         </div>
+
+        {hasAdDraft && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center gap-3 text-blue-900 text-xs font-medium animate-in fade-in">
+            <Sparkles className="h-5 w-5 flex-shrink-0 text-blue-600" />
+            <div>
+              <span className="font-bold">Pending Advertisement:</span> Sign in to publish your advertisement in Hosur. All your entered details and photos are preserved!
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700 text-xs font-medium">
@@ -134,14 +153,17 @@ export default function Login() {
                 <span>Signing in...</span>
               </>
             ) : (
-              <span>Sign In</span>
+              <span>{hasAdDraft ? 'Sign In & Continue to Ad' : 'Sign In'}</span>
             )}
           </button>
         </form>
 
         <div className="mt-8 text-center text-xs text-gray-500 pt-6 border-t border-slate-100">
           Don't have an account?{' '}
-          <Link to="/register" className="font-bold text-blue-600 hover:underline inline-flex items-center gap-1">
+          <Link 
+            to={explicitFrom ? `/register?redirect=${encodeURIComponent(explicitFrom)}` : '/register'} 
+            className="font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
+          >
             Create an account <ArrowRight className="h-3 w-3" />
           </Link>
         </div>

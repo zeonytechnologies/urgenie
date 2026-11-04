@@ -17,6 +17,7 @@ interface AdDisplayItem {
   location: string;
   condition?: string;
   image: string;
+  images?: string[];
   postedAt: string;
   status?: string;
   views_count?: number;
@@ -75,7 +76,8 @@ function formatBrowseAdItem(item: any): AdDisplayItem {
     listingType: lType,
     location: item.location_name || item.location_text || 'Hosur',
     condition: item.condition || 'good',
-    image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    image: item.images?.[0] || item.image || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+    images: Array.isArray(item.images) && item.images.length > 0 ? item.images : (item.image ? [item.image] : []),
     postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
     status: item.status || 'active',
     views_count: item.views_count || 1,
@@ -164,7 +166,7 @@ export default function Browse() {
         let remoteAds: any[] = [];
         let remoteFetchSucceeded = false;
         try {
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000));
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
           const queryPromise = (supabase.from('ads') as any)
             .select('*')
             .order('created_at', { ascending: false });
@@ -398,7 +400,7 @@ export default function Browse() {
         {[
           { id: 'all', label: 'All Listings' },
           { id: 'new', label: 'Sell New (N)' },
-          { id: 'preowned', label: 'Pre-owned (P)' },
+          { id: 'preowned', label: 'Used' },
           { id: 'rent', label: 'Rent / Lease (R)' },
           { id: 'job', label: 'Job Openings (J)' },
           { id: 'service', label: 'Services (S)' },

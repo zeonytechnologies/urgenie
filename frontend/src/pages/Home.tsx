@@ -20,6 +20,7 @@ interface AdItem {
   price: string;
   location: string;
   image: string;
+  images?: string[];
   category: string;
   postedAt: string;
   status?: string;
@@ -97,7 +98,8 @@ function formatHomeAds(items: any[]): AdItem[] {
       title: item.title,
       price: displayPrice,
       location: item.location_name || item.location_text || 'Hosur',
-      image: item.images?.[0] || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+      image: item.images?.[0] || item.image || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500',
+      images: Array.isArray(item.images) && item.images.length > 0 ? item.images : (item.image ? [item.image] : []),
       category: resolvedCat,
       postedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently',
       status: item.status || 'active',
@@ -149,11 +151,11 @@ export default function Home() {
     let isMounted = true;
     const fetchHomeData = async () => {
       try {
-        // Fast non-blocking remote query with 1.2s timeout
+        // Fast non-blocking remote query with 6s timeout
         let remoteAds: any[] = [];
         let remoteFetchSucceeded = false;
         try {
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200));
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
           const queryPromise = (supabase.from('ads') as any)
             .select('*')
             .order('created_at', { ascending: false })

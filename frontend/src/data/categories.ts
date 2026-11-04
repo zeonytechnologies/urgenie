@@ -49,8 +49,8 @@ export const LISTING_TYPES: Record<string, ListingTypeInfo> = {
   preowned: {
     code: 'P',
     id: 'preowned',
-    label: 'Sell Pre-owned',
-    badge: 'Pre-owned',
+    label: 'Used',
+    badge: 'Used',
     color: 'text-blue-700 border-blue-300',
     bgLight: 'bg-blue-50 text-blue-700',
   },

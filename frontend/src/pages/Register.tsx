@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Phone, MapPin, AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Mail, Lock, User, Phone, MapPin, AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { UserRole } from '../types/database';
 
@@ -15,9 +15,37 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [hasAdDraft, setHasAdDraft] = useState(false);
 
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const searchRedirect = new URLSearchParams(location.search).get('redirect') || (location.state as any)?.from?.pathname;
+
+  // Auto-restore draft details if user was posting an ad before registering
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('urgenie_post_ad_draft');
+      if (savedDraft) {
+        setHasAdDraft(true);
+        const d = JSON.parse(savedDraft);
+        if (d) {
+          if (d.sellerName && d.sellerName !== 'Verified User' && !fullName) {
+            setFullName(d.sellerName);
+          }
+          if (d.phone && d.phone !== '9876543210' && !phone) {
+            setPhone(d.phone);
+          }
+          if (d.location && !city) {
+            setCity(d.location);
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
+  const effectiveRedirect = searchRedirect || (hasAdDraft ? '/post-ad' : null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,8 +88,12 @@ export default function Register() {
     } else {
       setSuccess(true);
       setTimeout(() => {
-        navigate('/profile');
-      }, 2000);
+        if (effectiveRedirect) {
+          navigate(effectiveRedirect, { replace: true });
+        } else {
+          navigate('/profile', { replace: true });
+        }
+      }, 1000);
     }
   };
 
@@ -78,6 +110,15 @@ export default function Register() {
           </p>
         </div>
 
+        {hasAdDraft && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center gap-3 text-blue-900 text-xs font-medium animate-in fade-in">
+            <Sparkles className="h-5 w-5 flex-shrink-0 text-blue-600" />
+            <div>
+              <span className="font-bold">Your Ad Draft is Preserved:</span> Register below and you'll be redirected directly to publish your ad with all your photos and details intact!
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700 text-xs font-medium">
             <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
@@ -92,10 +133,14 @@ export default function Register() {
             </div>
             <h2 className="text-xl font-black text-gray-900 mb-2">Account Created!</h2>
             <p className="text-gray-600 text-xs sm:text-sm mb-6">
-              Welcome aboard, {fullName}! Directing you to your dashboard...
+              Welcome aboard, {fullName}! {effectiveRedirect ? 'Returning you to publish your ad...' : 'Directing you to your dashboard...'}
             </p>
-            <Link to="/profile" className="btn btn-primary w-full py-3 inline-flex items-center justify-center font-bold">
-              Go to Dashboard
+            <Link 
+              to={effectiveRedirect || '/profile'} 
+              className="btn btn-primary w-full py-3 inline-flex items-center justify-center font-bold gap-2"
+            >
+              <span>{effectiveRedirect ? 'Continue to Publish Ad' : 'Go to Dashboard'}</span>
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         ) : (
@@ -227,7 +272,7 @@ export default function Register() {
                   <span>Creating Account...</span>
                 </>
               ) : (
-                <span>Create Account</span>
+                <span>{effectiveRedirect ? 'Create Account & Continue to Ad' : 'Create Account'}</span>
               )}
             </button>
           </form>
@@ -235,7 +280,10 @@ export default function Register() {
 
         <div className="mt-8 text-center text-xs text-gray-500 pt-6 border-t border-slate-100">
           Already have an account?{' '}
-          <Link to="/login" className="font-bold text-blue-600 hover:underline">
+          <Link 
+            to={effectiveRedirect ? `/login?redirect=${encodeURIComponent(effectiveRedirect)}` : '/login'} 
+            className="font-bold text-blue-600 hover:underline"
+          >
             Sign In
           </Link>
         </div>

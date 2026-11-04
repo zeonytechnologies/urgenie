@@ -65,7 +65,7 @@ export default function MyAds() {
       let remoteAds: any[] = [];
       let remoteFetchSucceeded = false;
       try {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
         const res: any = await Promise.race([query.order('created_at', { ascending: false }), timeoutPromise]);
         if (res && !res.error && Array.isArray(res.data)) {
           remoteAds = res.data;

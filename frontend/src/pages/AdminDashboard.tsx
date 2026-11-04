@@ -281,7 +281,7 @@ export default function AdminDashboard() {
       // 1. Fetch Ads from Supabase
       try {
         const queryPromise = (supabase.from('ads') as any).select('*').order('created_at', { ascending: false });
-        const res: any = await Promise.race([queryPromise, timeout(600)]);
+        const res: any = await Promise.race([queryPromise, timeout(6000)]);
         if (res && res.data && res.data.length > 0) {
           const dbFormatted: AdItem[] = res.data.map((item: any) => ({
             id: item.id,
@@ -305,7 +305,7 @@ export default function AdminDashboard() {
       // 2. Fetch Users from Supabase profiles
       try {
         const profilesPromise = (supabase.from('profiles') as any).select('*').order('created_at', { ascending: false });
-        const res: any = await Promise.race([profilesPromise, timeout(600)]);
+        const res: any = await Promise.race([profilesPromise, timeout(6000)]);
         if (res && res.data && res.data.length > 0) {
           const dbUsers: UserItem[] = res.data.map((p: any) => ({
             id: p.id,
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
       // 3. Fetch Reports from Supabase
       try {
         const repPromise = (supabase.from('reports') as any).select('*').order('created_at', { ascending: false });
-        const res: any = await Promise.race([repPromise, timeout(600)]);
+        const res: any = await Promise.race([repPromise, timeout(6000)]);
         if (res && res.data && res.data.length > 0) {
           const dbReports = res.data.map((r: any) => ({
             id: r.id,
