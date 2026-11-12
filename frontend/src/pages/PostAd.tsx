@@ -48,9 +48,242 @@ const DEFAULT_LOCATIONS = [
   'Zuzuvadi'
 ];
 
+// Helper to determine if an option represents physical goods / merchandise
+export const isPhysicalGoodOption = (optionId: string) => {
+  return optionId === 'sell-item' || optionId === 'buy-item';
+};
+
+// Dynamic default cover image based on section and option
+export const getDefaultImageForCategory = (sectionId: string, optionId?: string, subcatSlug?: string) => {
+  if (sectionId === 'plots') {
+    return 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800'; // Land / green field
+  }
+  if (sectionId === 'housing') {
+    return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800'; // Modern apartment / house
+  }
+  if (sectionId === 'commercial-property') {
+    return 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800'; // Commercial office / shop
+  }
+  if (sectionId === 'jobs' || sectionId === 'temp-jobs') {
+    return 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800'; // Workplace / hiring
+  }
+  if (sectionId === 'services') {
+    return 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800'; // Professional tools / repair
+  }
+  if (sectionId === 'childcare') {
+    return 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=800'; // Childcare / learning
+  }
+  if (sectionId === 'learning') {
+    return 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800'; // Education / study
+  }
+  if (sectionId === 'community') {
+    if (optionId === 'community-pet-adoption') {
+      return 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800'; // Puppy / pet
+    }
+    if (optionId === 'community-rideshare') {
+      return 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800'; // Carpool / driving
+    }
+    if (optionId === 'community-musicians') {
+      return 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800'; // Music instrument
+    }
+    if (optionId === 'community-sports') {
+      return 'https://images.unsplash.com/photo-1526676037777-05a232554f77?w=800'; // Badminton / sports
+    }
+    return 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800'; // Community gathering
+  }
+  if (sectionId === 'buy-sell') {
+    if (subcatSlug && (subcatSlug.includes('vehicles') || subcatSlug.includes('motorcycles'))) {
+      return 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800'; // Motorcycle / vehicle
+    }
+    if (subcatSlug && (subcatSlug.includes('mobile') || subcatSlug.includes('computers'))) {
+      return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800'; // Tech gadget
+    }
+    return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800'; // Merchandise
+  }
+  return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800';
+};
+
+// Category and Subcategory Tailored Title Placeholders
+export const getTitlePlaceholder = (optionId: string, subcatSlug?: string) => {
+  if (optionId === 'plots-offering') {
+    if (subcatSlug === 'residential-plots') return 'e.g. 1200 Sq.Ft (30x40) DTCP Approved Plot for Sale near Mathigiri';
+    if (subcatSlug === 'commercial-land') return 'e.g. 3,500 Sq.Ft Commercial Main Road Site near SIPCOT Phase 2';
+    if (subcatSlug === 'agricultural-farmland') return 'e.g. 2 Acres Fertile Farmland with Borewell & Road Access near Hosur';
+    if (subcatSlug === 'industrial-plots') return 'e.g. 1 Acre Industrial Plot in SIPCOT Zone with 40ft Road Access';
+    return 'e.g. 1200 Sq.Ft Layout Plot for Sale in Hosur';
+  }
+  if (optionId === 'housing-offering') {
+    if (subcatSlug === 'apartments-rent') return 'e.g. Semi-Furnished 2 BHK Apartment for Rent on Bagalur Road';
+    if (subcatSlug === 'houses-rent') return 'e.g. Independent 3 BHK Villa with Car Parking for Rent in Mathigiri';
+    if (subcatSlug === 'rooms-shared-rent') return 'e.g. Furnished Single Room in 3 BHK Flat for Working Professional';
+    if (subcatSlug === 'pg-hostels') return "e.g. Executive Men's / Women's PG with 3 Times Food & Wi-Fi near SIPCOT";
+    if (subcatSlug === 'apartments-sale') return 'e.g. Newly Constructed 3 BHK Luxury Flat with Lift & Parking for Sale';
+    if (subcatSlug === 'houses-sale') return 'e.g. Independent 3 BHK Duplex House with Gated Security for Sale';
+    if (subcatSlug === 'short-term-rentals') return 'e.g. Fully Furnished 2 BHK Flat for Short-Term / Monthly Stay';
+    return 'e.g. 2 BHK House / Apartment in Hosur';
+  }
+  if (optionId === 'housing-seeking') return 'e.g. Family looking for 2 BHK Flat / House for Rent near SIPCOT Phase 1';
+  if (optionId === 'housing-exchange') return 'e.g. House Exchange: 3 BHK House in Hosur for 2 BHK Flat in Bangalore';
+  if (optionId === 'commercial-offering') {
+    if (subcatSlug === 'commercial-offices') return 'e.g. 1200 Sq.Ft Furnished Office Space for Rent in Hosur Town';
+    if (subcatSlug === 'retail-shops') return 'e.g. Main Road Ground Floor Retail Shop / Showroom for Rent';
+    if (subcatSlug === 'warehouses-godowns') return 'e.g. 5,000 Sq.Ft Industrial Warehouse / Godown near Highway';
+    if (subcatSlug === 'industrial-sheds') return 'e.g. 10,000 Sq.Ft Industrial Shed with 50 kVA Power in SIPCOT';
+    return 'e.g. Commercial Space / Shop for Rent in Hosur';
+  }
+  if (optionId === 'job-seeking') return 'e.g. Experienced CNC Machine Operator / Quality Engineer seeking Job in Hosur';
+  if (optionId === 'job-offering') return 'e.g. Hiring: Full-Time Production Supervisor & Maintenance Engineer in Hosur';
+  if (optionId === 'temp-jobs-hire') return 'e.g. Urgent: Event Staff / Delivery Driver needed for 2 Days in Hosur';
+  if (optionId === 'childcare-seeking') return 'e.g. Experienced Nanny & Babysitter available for Childcare in Hosur';
+  if (optionId === 'childcare-hire') return 'e.g. Seeking Trusted Full-Time Babysitter for 2-Year-Old Child in Hosur';
+  if (optionId === 'childcare-daycare') return 'e.g. Safe & Loving Daycare and Playgroup Services near Hosur Town Center';
+  if (optionId === 'community-rideshare') return 'e.g. Daily Carpool / Rideshare: Hosur to Electronic City (8:00 AM / 6:00 PM)';
+  if (optionId === 'community-pet-adoption') return 'e.g. Healthy 2-Month Indie Rescued Puppy looking for a loving home';
+  if (optionId === 'community-lost-found') return 'e.g. Lost Black Leather Wallet near Hosur Bus Stand on Monday';
+  if (optionId === 'community-sports') return 'e.g. Looking for Badminton Partners for Evening Games in Hosur';
+  if (optionId === 'community-musicians') return 'e.g. Lead Guitarist seeking Vocalist & Drummer for Classic Rock Band';
+  if (optionId === 'community-event') return 'e.g. Weekend Hosur Expat & Community Cultural Meetup';
+  if (optionId === 'community-artists') return 'e.g. Looking for Digital Artists & Illustrators for Hosur Project';
+  if (optionId === 'community-general') return 'e.g. Hosur Neighbourhood Cleanliness & Greening Initiative';
+  if (optionId === 'community-help') return 'e.g. Volunteer Assistance & Senior Citizen Support in Hosur';
+  if (optionId === 'community-news') return 'e.g. Local Civic Update: Road Works on Bagalur Road';
+  if (optionId === 'community-permit-transfer') return 'e.g. Seeking Mutual Permit / Relocation Transfer Information';
+  if (optionId === 'learning-exchange') return 'e.g. Native Tamil Speaker looking for German / Hindi Language Exchange';
+  if (optionId === 'learning-offering') return 'e.g. Experienced Math & Science Tutor for Classes 8 to 12 in Hosur';
+  if (optionId === 'learning-seeking') return 'e.g. Looking for Spoken English or French Tutor for Beginners';
+  if (optionId === 'services-offering') {
+    if (subcatSlug === 'home-repairs') return 'e.g. Professional Electrician & Plumbing Repairs in Hosur with Quick Visit';
+    if (subcatSlug === 'appliance-repair') return 'e.g. AC Repair, Washing Machine & Refrigerator Service with Warranty';
+    if (subcatSlug === 'cleaning-pest') return 'e.g. Deep Home Cleaning & Professional Pest Control in Hosur';
+    if (subcatSlug === 'movers-packers') return 'e.g. Reliable Movers & Packers / Mini Truck Shifting Services';
+    if (subcatSlug === 'computer-tech') return 'e.g. Computer, Laptop & CCTV Installation and Repair Services';
+    if (subcatSlug === 'accounting-legal') return 'e.g. GST Registration, Income Tax Filing & Company Incorporation';
+    if (subcatSlug === 'salon-beauty') return 'e.g. Professional Bridal Makeup & Salon at Home Services in Hosur';
+    if (subcatSlug === 'events-photography') return 'e.g. Candid Wedding & Birthday Event Photography in Hosur';
+    if (subcatSlug === 'domestic-help') return 'e.g. Trusted Cook & Housekeeper Maid Services for Families';
+    if (subcatSlug === 'auto-repair') return 'e.g. Car Mechanic, Doorstep Foam Wash & Detailing Services';
+    return 'e.g. Professional On-Demand Services in Hosur';
+  }
+  if (optionId === 'sell-item') {
+    if (subcatSlug && (subcatSlug.includes('vehicles') || subcatSlug.includes('motorcycles'))) {
+      return 'e.g. 2023 Royal Enfield Classic 350 - Single Owner Mint Condition';
+    }
+    if (subcatSlug && (subcatSlug.includes('mobile') || subcatSlug.includes('phones'))) {
+      return 'e.g. iPhone 14 128GB Blue - 100% Battery Health with Bill & Box';
+    }
+    if (subcatSlug && (subcatSlug.includes('computers') || subcatSlug.includes('laptops'))) {
+      return 'e.g. Dell Latitude 14-inch Laptop i5 16GB RAM 512GB SSD in Excellent Condition';
+    }
+    if (subcatSlug && (subcatSlug.includes('appliances') || subcatSlug.includes('home-appliances'))) {
+      return 'e.g. LG 260L Inverter Double Door Refrigerator - 2 Years Old';
+    }
+    if (subcatSlug && (subcatSlug.includes('furniture'))) {
+      return 'e.g. Solid Sheesham Wood 6-Seater Dining Table with Cushioned Chairs';
+    }
+    return 'e.g. Brand / Model Item Name in Good Working Condition';
+  }
+  if (optionId === 'buy-item') return 'e.g. Looking to Buy Used Scooter (Activa/Jupiter) in Good Condition';
+  return 'e.g. Enter a clear and descriptive title for your advertisement';
+};
+
+// Category Tailored Description Placeholders
+export const getDescriptionPlaceholder = (optionId: string) => {
+  if (optionId === 'plots-offering') {
+    return 'Describe the land / plot: exact dimensions, survey number / patta status, facing (East/North), access road width, water/electricity connection, distance from highway/bus stand, and clear title details.';
+  }
+  if (optionId === 'housing-offering') {
+    return 'Describe the property: room count, built-up area, flooring, water source (Cauvery / Borewell), car parking availability, power backup, security, nearby schools/companies, and move-in terms.';
+  }
+  if (optionId === 'housing-seeking') {
+    return 'Describe your requirement: family / bachelor size, preferred BHK, required amenities (parking, lift), budget limit, preferred localities in Hosur, and intended move-in date.';
+  }
+  if (optionId === 'commercial-offering') {
+    return 'Describe the commercial space: floor area, frontage, main road visibility, power supply capacity (kVA), parking space for visitors/trucks, suitable businesses, and lease terms.';
+  }
+  if (optionId === 'job-seeking') {
+    return 'Describe your career profile: total years of experience, past employers, core technical/functional skills, highest education, certifications, notice period, and preferred role/location in Hosur.';
+  }
+  if (optionId === 'job-offering') {
+    return 'Describe the job vacancy: roles and responsibilities, required qualifications and experience, work timings / shifts, salary breakdown and benefits, work location, and interview process.';
+  }
+  if (optionId === 'temp-jobs-hire') {
+    return 'Describe the gig: specific task to be done, duration (hours/days), date and timing, pay per hour/day, reporting location in Hosur, and any tools/skills needed.';
+  }
+  if (optionId === 'services-offering') {
+    return 'Describe your service: scope of work, years of experience, visit charges / pricing details, guarantee/warranty provided, service area coverage in Hosur, and typical response time.';
+  }
+  if (optionId.startsWith('childcare')) {
+    return 'Describe your childcare needs or offering: age of children, timings and daily routine, background/experience, police verification, meal preparation, and expectations.';
+  }
+  if (optionId === 'community-rideshare') {
+    return 'Describe the carpool: daily route and pickup/drop points, exact departure and return timings, vehicle model (AC/Non-AC), luggage capacity, and fuel contribution details.';
+  }
+  if (optionId === 'community-pet-adoption') {
+    return 'Describe the pet: breed, age, gender, temperament with children/other pets, vaccination and deworming history, diet habits, and adoption requirements.';
+  }
+  if (optionId === 'community-lost-found') {
+    return 'Describe the lost or found item: exact description, brand/color, date, time, landmark/location where lost or found, identification marks, and how owner can contact or claim.';
+  }
+  if (optionId.startsWith('community')) {
+    return 'Describe your community announcement, initiative, meetup, or event in detail: schedule, venue, who should join, guidelines, and contact instructions.';
+  }
+  if (optionId.startsWith('learning')) {
+    return 'Describe the learning offering or requirement: subjects/languages, syllabus (CBSE/ICSE/State), experience level, online or in-person class schedule, and fees.';
+  }
+  if (optionId === 'sell-item') {
+    return 'Describe your item: brand, model, age, working condition, any cosmetic wear or flaws, included accessories (cables, box, bill), reason for selling, and testing availability.';
+  }
+  if (optionId === 'buy-item') {
+    return 'Describe the item you want to purchase: preferred brand/model, acceptable condition, budget range, urgency, and preferred meetup location in Hosur.';
+  }
+  return 'Provide comprehensive details about your advertisement. Clear descriptions receive significantly higher responses from genuine Hosur buyers and community members.';
+};
+
+// Filter out old legacy dummy strings from stale local drafts
+const OLD_DUMMY_VALUES = new Set([
+  '30 Feet Blacktop Road',
+  'DTCP & HNTDA Approved',
+  'Gated Layout with Boundary Wall',
+  'Experienced Nanny / Babysitter',
+  'Toddlers (1 to 4 Years)',
+  '5+ Years in Expat Families',
+  'First Aid & Police Verified',
+  'Full-Time Day (9 AM - 6 PM)',
+  'Yesterday Afternoon',
+  'Near Hosur Bus Stand / Town',
+  '₹1,000 Cash Reward',
+  'Hosur Town / Mathigiri',
+  'Electronic City / Silk Board, Bangalore',
+  'Daily Morning 7:45 AM / Return 6:30 PM',
+  'AC Sedan Car',
+  '2 Seats Available',
+  '₹120 / Trip (Fuel Split)',
+  'Puppy (Indie Rescued)',
+  '3 Months, Female',
+  'Vaccinated & Dewormed',
+  'Badminton',
+  'Intermediate / Regular Player',
+  'Weekday Evenings (7:00 PM - 8:30 PM)',
+  'Acoustic / Lead Guitarist',
+  'Rock, Pop, Acoustic Ballads',
+  'Expatriates Hosur Cultural Meet',
+  'Upcoming Saturday 5:00 PM',
+  'Hosur Town Community Hall',
+  'Spoken English & Communication',
+  'Tamil & English',
+  'Hindi / German',
+  'Online Video Call / In-Person',
+  'Beginner to Intermediate',
+  'Electrical Wiring & Inverter Setup',
+  '₹299 Inspection / Visit Charge',
+  '30 Days Service Warranty',
+  'All Hosur & SIPCOT Areas'
+]);
+const sanitizeDraftValue = (v: any) => (v && !OLD_DUMMY_VALUES.has(v) ? v : '');
+
 export default function PostAd() {
   const { user, profile, signIn, signUp } = useAuth();
-  const DRAFT_KEY = 'urgenie_post_ad_draft';
+  const DRAFT_KEY = 'urgenie_post_ad_draft_v2';
 
   // Wizard Steps:
   // 1 = Select Expatriates Option & Subcategory
@@ -113,7 +346,7 @@ export default function PostAd() {
   const [vehicleKm, setVehicleKm] = useState('');
   const [vehicleOwners, setVehicleOwners] = useState('1st Owner');
   const [vehicleTransmission, setVehicleTransmission] = useState('Manual');
-  const [itemCondition, setItemCondition] = useState('Like New');
+  const [itemCondition, setItemCondition] = useState('Like New (Mint)');
   const [itemWarranty, setItemWarranty] = useState('');
   const [itemBillBox, setItemBillBox] = useState('');
 
@@ -126,23 +359,23 @@ export default function PostAd() {
   const [jobCompany, setJobCompany] = useState('');
   const [jobIndustry, setJobIndustry] = useState('');
   const [jobExperience, setJobExperience] = useState('');
-  const [jobType, setJobType] = useState('Full-Time');
+  const [jobType, setJobType] = useState('Full-Time Permanent');
   const [jobEducation, setJobEducation] = useState('');
   const [jobNoticePeriod, setJobNoticePeriod] = useState('');
   const [jobWorkMode, setJobWorkMode] = useState('');
   const [jobSkills, setJobSkills] = useState('');
 
   // 4. Temp Jobs
-  const [tempDuration, setTempDuration] = useState('');
+  const [tempDuration, setTempDuration] = useState('1 Day Only');
   const [tempPayBasis, setTempPayBasis] = useState('');
   const [tempHours, setTempHours] = useState('');
-  const [tempUrgency, setTempUrgency] = useState('');
+  const [tempUrgency, setTempUrgency] = useState('Immediate (Starts Tomorrow)');
 
   // 5. Housing (Offering vs Exchange vs Seeking)
   const [housingOfferType, setHousingOfferType] = useState('For Rent');
-  const [propertyBhk, setPropertyBhk] = useState('');
+  const [propertyBhk, setPropertyBhk] = useState('2 BHK');
   const [propertyArea, setPropertyArea] = useState('');
-  const [propertyFurnishing, setPropertyFurnishing] = useState('');
+  const [propertyFurnishing, setPropertyFurnishing] = useState('Semi-Furnished');
   const [propertyFloor, setPropertyFloor] = useState('');
   const [propertyFacing, setPropertyFacing] = useState('');
   const [propertyDeposit, setPropertyDeposit] = useState('');
@@ -166,61 +399,61 @@ export default function PostAd() {
 
   // 7. Plots
   const [plotType, setPlotType] = useState('Residential Layout Plot (DTCP)');
-  const [plotSize, setPlotSize] = useState('1200 Sq.Ft (30x40)');
-  const [plotRoadWidth, setPlotRoadWidth] = useState('30 Feet Blacktop Road');
-  const [plotApproval, setPlotApproval] = useState('DTCP & HNTDA Approved');
-  const [plotFencing, setPlotFencing] = useState('Gated Layout with Boundary Wall');
+  const [plotSize, setPlotSize] = useState('');
+  const [plotRoadWidth, setPlotRoadWidth] = useState('');
+  const [plotApproval, setPlotApproval] = useState('');
+  const [plotFencing, setPlotFencing] = useState('');
 
   // 8. Childcare
-  const [childcareRole, setChildcareRole] = useState('Experienced Nanny / Babysitter');
-  const [childcareAgeGroup, setChildcareAgeGroup] = useState('Toddlers (1 to 4 Years)');
-  const [childcareExperience, setChildcareExperience] = useState('5+ Years in Expat Families');
-  const [childcareCert, setChildcareCert] = useState('First Aid & Police Verified');
-  const [childcareTiming, setChildcareTiming] = useState('Full-Time Day (9 AM - 6 PM)');
+  const [childcareRole, setChildcareRole] = useState('');
+  const [childcareAgeGroup, setChildcareAgeGroup] = useState('');
+  const [childcareExperience, setChildcareExperience] = useState('');
+  const [childcareCert, setChildcareCert] = useState('');
+  const [childcareTiming, setChildcareTiming] = useState('');
 
   // 9. Community
   const [lostFoundStatus, setLostFoundStatus] = useState('Lost Item');
-  const [lostFoundDate, setLostFoundDate] = useState('Yesterday Afternoon');
-  const [lostFoundLocation, setLostFoundLocation] = useState('Near Hosur Bus Stand / Town');
-  const [lostFoundReward, setLostFoundReward] = useState('₹1,000 Cash Reward');
+  const [lostFoundDate, setLostFoundDate] = useState('');
+  const [lostFoundLocation, setLostFoundLocation] = useState('');
+  const [lostFoundReward, setLostFoundReward] = useState('');
 
   // Rideshare
-  const [rideOrigin, setRideOrigin] = useState('Hosur Town / Mathigiri');
-  const [rideDestination, setRideDestination] = useState('Electronic City / Silk Board, Bangalore');
-  const [rideSchedule, setRideSchedule] = useState('Daily Morning 7:45 AM / Return 6:30 PM');
-  const [rideVehicle, setRideVehicle] = useState('AC Sedan Car');
-  const [rideSeats, setRideSeats] = useState('2 Seats Available');
-  const [rideCostShare, setRideCostShare] = useState('₹120 / Trip (Fuel Split)');
+  const [rideOrigin, setRideOrigin] = useState('');
+  const [rideDestination, setRideDestination] = useState('');
+  const [rideSchedule, setRideSchedule] = useState('');
+  const [rideVehicle, setRideVehicle] = useState('');
+  const [rideSeats, setRideSeats] = useState('');
+  const [rideCostShare, setRideCostShare] = useState('');
 
   // Pet Adoption
-  const [petType, setPetType] = useState('Puppy (Indie Rescued)');
-  const [petAgeGender, setPetAgeGender] = useState('3 Months, Female');
-  const [petHealth, setPetHealth] = useState('Vaccinated & Dewormed');
+  const [petType, setPetType] = useState('');
+  const [petAgeGender, setPetAgeGender] = useState('');
+  const [petHealth, setPetHealth] = useState('');
 
   // Sports & Music
-  const [sportName, setSportName] = useState('Badminton');
-  const [sportLevel, setSportLevel] = useState('Intermediate / Regular Player');
-  const [sportTime, setSportTime] = useState('Weekday Evenings (7:00 PM - 8:30 PM)');
-  const [musicRole, setMusicRole] = useState('Acoustic / Lead Guitarist');
-  const [musicGenre, setMusicGenre] = useState('Rock, Pop, Acoustic Ballads');
+  const [sportName, setSportName] = useState('');
+  const [sportLevel, setSportLevel] = useState('');
+  const [sportTime, setSportTime] = useState('');
+  const [musicRole, setMusicRole] = useState('');
+  const [musicGenre, setMusicGenre] = useState('');
 
   // Event
-  const [eventName, setEventName] = useState('Expatriates Hosur Cultural Meet');
-  const [eventDate, setEventDate] = useState('Upcoming Saturday 5:00 PM');
-  const [eventVenue, setEventVenue] = useState('Hosur Town Community Hall');
+  const [eventName, setEventName] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventVenue, setEventVenue] = useState('');
 
   // 10. Learning
-  const [learnSubject, setLearnSubject] = useState('Spoken English & Communication');
-  const [learnNativeLang, setLearnNativeLang] = useState('Tamil & English');
-  const [learnTargetLang, setLearnTargetLang] = useState('Hindi / German');
-  const [learnMode, setLearnMode] = useState('Online Video Call / In-Person');
-  const [learnLevel, setLearnLevel] = useState('Beginner to Intermediate');
+  const [learnSubject, setLearnSubject] = useState('');
+  const [learnNativeLang, setLearnNativeLang] = useState('');
+  const [learnTargetLang, setLearnTargetLang] = useState('');
+  const [learnMode, setLearnMode] = useState('');
+  const [learnLevel, setLearnLevel] = useState('');
 
   // 11. Services
-  const [serviceSpecialty, setServiceSpecialty] = useState('Electrical Wiring & Inverter Setup');
-  const [servicePricingModel, setServicePricingModel] = useState('₹299 Inspection / Visit Charge');
-  const [serviceWarranty, setServiceWarranty] = useState('30 Days Service Warranty');
-  const [serviceCoverage, setServiceCoverage] = useState('All Hosur & SIPCOT Areas');
+  const [serviceSpecialty, setServiceSpecialty] = useState('');
+  const [servicePricingModel, setServicePricingModel] = useState('');
+  const [serviceWarranty, setServiceWarranty] = useState('');
+  const [serviceCoverage, setServiceCoverage] = useState('');
 
 
   const saveDraftToStorage = (targetStep?: number) => {
@@ -334,12 +567,15 @@ export default function PostAd() {
   const handleDiscardDraft = () => {
     try {
       localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem('urgenie_post_ad_draft');
     } catch {}
     setRestoredFromDraft(false);
     setStep(1);
     setTitle('');
     setDescription('');
     setPrice('');
+    setIsNegotiable(true);
+    setCondition('good');
     setImages([]);
     setReviewPhotoIndex(0);
     setSellerName(profile?.full_name || '');
@@ -348,23 +584,105 @@ export default function PostAd() {
     setVehicleModel('');
     setVehicleYear('');
     setVehicleKm('');
+    setVehicleOwners('1st Owner');
+    setVehicleTransmission('Manual');
+    setItemCondition('Like New (Mint)');
+    setItemWarranty('');
+    setItemBillBox('');
+    setWantedUrgency('');
+    setWantedCondition('');
     setJobTitle('');
     setJobCompany('');
-    setPropertyBhk('');
+    setJobIndustry('');
+    setJobExperience('');
+    setJobType('Full-Time Permanent');
+    setJobEducation('');
+    setJobNoticePeriod('');
+    setJobWorkMode('');
+    setJobSkills('');
+    setTempDuration('1 Day Only');
+    setTempPayBasis('');
+    setTempHours('');
+    setTempUrgency('Immediate (Starts Tomorrow)');
+    setHousingOfferType('For Rent');
+    setPropertyBhk('2 BHK');
     setPropertyArea('');
+    setPropertyFurnishing('Semi-Furnished');
+    setPropertyFloor('');
+    setPropertyFacing('');
+    setPropertyDeposit('');
+    setPropertyTenantPref('');
+    setPropertyAvailableFrom('');
+    setExchangeCurrentLoc('');
+    setExchangeDestination('');
+    setExchangeDuration('');
+    setSeekTenantType('');
+    setSeekPreferredAreas('');
+    setCommercialKind('Office Space');
+    setCommercialPowerLoad('');
+    setCommercialParking('');
+    setCommercialLoadingDock('');
+    setPlotType('Residential Layout Plot (DTCP)');
+    setPlotSize('');
+    setPlotRoadWidth('');
+    setPlotApproval('');
+    setPlotFencing('');
+    setChildcareRole('');
+    setChildcareAgeGroup('');
+    setChildcareExperience('');
+    setChildcareCert('');
+    setChildcareTiming('');
+    setLostFoundStatus('Lost Item');
+    setLostFoundDate('');
+    setLostFoundLocation('');
+    setLostFoundReward('');
+    setRideOrigin('');
+    setRideDestination('');
+    setRideSchedule('');
+    setRideVehicle('');
+    setRideSeats('');
+    setRideCostShare('');
+    setPetType('');
+    setPetAgeGender('');
+    setPetHealth('');
+    setSportName('');
+    setSportLevel('');
+    setSportTime('');
+    setMusicRole('');
+    setMusicGenre('');
+    setEventName('');
+    setEventDate('');
+    setEventVenue('');
+    setLearnSubject('');
+    setLearnNativeLang('');
+    setLearnTargetLang('');
+    setLearnMode('');
+    setLearnLevel('');
+    setServiceSpecialty('');
+    setServicePricingModel('');
+    setServiceWarranty('');
+    setServiceCoverage('');
   };
 
   // Restore draft on initial mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(DRAFT_KEY);
+      const saved = localStorage.getItem(DRAFT_KEY) || localStorage.getItem('urgenie_post_ad_draft');
       if (saved) {
         const d = JSON.parse(saved);
         if (d && (d.title || d.description || (d.images && d.images.length > 0) || d.selectedOptionId)) {
           if (d.step && d.step >= 1 && d.step <= 4) setStep(d.step);
           if (d.selectedOptionId) setSelectedOptionId(d.selectedOptionId);
           if (d.selectedSubcategorySlug) setSelectedSubcategorySlug(d.selectedSubcategorySlug);
-          if (d.title) setTitle(d.title);
+          
+          // Only restore title if it wasn't the auto-generated sentence or a mismatched old category title
+          if (d.title && !d.title.startsWith('I am offering') && !d.title.startsWith('I would like')) {
+            if (d.title.includes('Office Space') && d.selectedOptionId !== 'commercial-offering') {
+              // Ignore old mismatched commercial title
+            } else {
+              setTitle(d.title);
+            }
+          }
           if (d.description) setDescription(d.description);
           if (d.price !== undefined) setPrice(d.price);
           if (d.isNegotiable !== undefined) setIsNegotiable(d.isNegotiable);
@@ -375,7 +693,7 @@ export default function PostAd() {
           if (d.phone) setPhone(d.phone);
           if (d.allowWhatsapp !== undefined) setAllowWhatsapp(d.allowWhatsapp);
 
-          // Category Specs
+          // Category Specs (filtered to remove any legacy dummy test strings)
           if (d.vehicleBrand) setVehicleBrand(d.vehicleBrand);
           if (d.vehicleModel) setVehicleModel(d.vehicleModel);
           if (d.vehicleYear) setVehicleYear(d.vehicleYear);
@@ -420,45 +738,45 @@ export default function PostAd() {
           if (d.commercialParking) setCommercialParking(d.commercialParking);
           if (d.commercialLoadingDock) setCommercialLoadingDock(d.commercialLoadingDock);
           if (d.plotType) setPlotType(d.plotType);
-          if (d.plotSize) setPlotSize(d.plotSize);
-          if (d.plotRoadWidth) setPlotRoadWidth(d.plotRoadWidth);
-          if (d.plotApproval) setPlotApproval(d.plotApproval);
-          if (d.plotFencing) setPlotFencing(d.plotFencing);
-          if (d.childcareRole) setChildcareRole(d.childcareRole);
-          if (d.childcareAgeGroup) setChildcareAgeGroup(d.childcareAgeGroup);
-          if (d.childcareExperience) setChildcareExperience(d.childcareExperience);
-          if (d.childcareCert) setChildcareCert(d.childcareCert);
-          if (d.childcareTiming) setChildcareTiming(d.childcareTiming);
+          if (d.plotSize) setPlotSize(sanitizeDraftValue(d.plotSize));
+          if (d.plotRoadWidth) setPlotRoadWidth(sanitizeDraftValue(d.plotRoadWidth));
+          if (d.plotApproval) setPlotApproval(sanitizeDraftValue(d.plotApproval));
+          if (d.plotFencing) setPlotFencing(sanitizeDraftValue(d.plotFencing));
+          if (d.childcareRole) setChildcareRole(sanitizeDraftValue(d.childcareRole));
+          if (d.childcareAgeGroup) setChildcareAgeGroup(sanitizeDraftValue(d.childcareAgeGroup));
+          if (d.childcareExperience) setChildcareExperience(sanitizeDraftValue(d.childcareExperience));
+          if (d.childcareCert) setChildcareCert(sanitizeDraftValue(d.childcareCert));
+          if (d.childcareTiming) setChildcareTiming(sanitizeDraftValue(d.childcareTiming));
           if (d.lostFoundStatus) setLostFoundStatus(d.lostFoundStatus);
-          if (d.lostFoundDate) setLostFoundDate(d.lostFoundDate);
-          if (d.lostFoundLocation) setLostFoundLocation(d.lostFoundLocation);
-          if (d.lostFoundReward) setLostFoundReward(d.lostFoundReward);
-          if (d.rideOrigin) setRideOrigin(d.rideOrigin);
-          if (d.rideDestination) setRideDestination(d.rideDestination);
-          if (d.rideSchedule) setRideSchedule(d.rideSchedule);
-          if (d.rideVehicle) setRideVehicle(d.rideVehicle);
-          if (d.rideSeats) setRideSeats(d.rideSeats);
-          if (d.rideCostShare) setRideCostShare(d.rideCostShare);
-          if (d.petType) setPetType(d.petType);
-          if (d.petAgeGender) setPetAgeGender(d.petAgeGender);
-          if (d.petHealth) setPetHealth(d.petHealth);
-          if (d.sportName) setSportName(d.sportName);
-          if (d.sportLevel) setSportLevel(d.sportLevel);
-          if (d.sportTime) setSportTime(d.sportTime);
-          if (d.musicRole) setMusicRole(d.musicRole);
-          if (d.musicGenre) setMusicGenre(d.musicGenre);
-          if (d.eventName) setEventName(d.eventName);
-          if (d.eventDate) setEventDate(d.eventDate);
-          if (d.eventVenue) setEventVenue(d.eventVenue);
-          if (d.learnSubject) setLearnSubject(d.learnSubject);
-          if (d.learnNativeLang) setLearnNativeLang(d.learnNativeLang);
-          if (d.learnTargetLang) setLearnTargetLang(d.learnTargetLang);
-          if (d.learnMode) setLearnMode(d.learnMode);
-          if (d.learnLevel) setLearnLevel(d.learnLevel);
-          if (d.serviceSpecialty) setServiceSpecialty(d.serviceSpecialty);
-          if (d.servicePricingModel) setServicePricingModel(d.servicePricingModel);
-          if (d.serviceWarranty) setServiceWarranty(d.serviceWarranty);
-          if (d.serviceCoverage) setServiceCoverage(d.serviceCoverage);
+          if (d.lostFoundDate) setLostFoundDate(sanitizeDraftValue(d.lostFoundDate));
+          if (d.lostFoundLocation) setLostFoundLocation(sanitizeDraftValue(d.lostFoundLocation));
+          if (d.lostFoundReward) setLostFoundReward(sanitizeDraftValue(d.lostFoundReward));
+          if (d.rideOrigin) setRideOrigin(sanitizeDraftValue(d.rideOrigin));
+          if (d.rideDestination) setRideDestination(sanitizeDraftValue(d.rideDestination));
+          if (d.rideSchedule) setRideSchedule(sanitizeDraftValue(d.rideSchedule));
+          if (d.rideVehicle) setRideVehicle(sanitizeDraftValue(d.rideVehicle));
+          if (d.rideSeats) setRideSeats(sanitizeDraftValue(d.rideSeats));
+          if (d.rideCostShare) setRideCostShare(sanitizeDraftValue(d.rideCostShare));
+          if (d.petType) setPetType(sanitizeDraftValue(d.petType));
+          if (d.petAgeGender) setPetAgeGender(sanitizeDraftValue(d.petAgeGender));
+          if (d.petHealth) setPetHealth(sanitizeDraftValue(d.petHealth));
+          if (d.sportName) setSportName(sanitizeDraftValue(d.sportName));
+          if (d.sportLevel) setSportLevel(sanitizeDraftValue(d.sportLevel));
+          if (d.sportTime) setSportTime(sanitizeDraftValue(d.sportTime));
+          if (d.musicRole) setMusicRole(sanitizeDraftValue(d.musicRole));
+          if (d.musicGenre) setMusicGenre(sanitizeDraftValue(d.musicGenre));
+          if (d.eventName) setEventName(sanitizeDraftValue(d.eventName));
+          if (d.eventDate) setEventDate(sanitizeDraftValue(d.eventDate));
+          if (d.eventVenue) setEventVenue(sanitizeDraftValue(d.eventVenue));
+          if (d.learnSubject) setLearnSubject(sanitizeDraftValue(d.learnSubject));
+          if (d.learnNativeLang) setLearnNativeLang(sanitizeDraftValue(d.learnNativeLang));
+          if (d.learnTargetLang) setLearnTargetLang(sanitizeDraftValue(d.learnTargetLang));
+          if (d.learnMode) setLearnMode(sanitizeDraftValue(d.learnMode));
+          if (d.learnLevel) setLearnLevel(sanitizeDraftValue(d.learnLevel));
+          if (d.serviceSpecialty) setServiceSpecialty(sanitizeDraftValue(d.serviceSpecialty));
+          if (d.servicePricingModel) setServicePricingModel(sanitizeDraftValue(d.servicePricingModel));
+          if (d.serviceWarranty) setServiceWarranty(sanitizeDraftValue(d.serviceWarranty));
+          if (d.serviceCoverage) setServiceCoverage(sanitizeDraftValue(d.serviceCoverage));
 
           setRestoredFromDraft(true);
         }
@@ -511,26 +829,147 @@ export default function PostAd() {
   const currentOption = getOptionById(selectedOptionId) || ALL_EXPATRIATES_OPTIONS[0];
   const currentSection = getSectionForOption(selectedOptionId) || EXPATRIATES_SECTIONS[0];
 
+  // Helper to sync category/subcategory defaults into Step 2 state and provide a tailored title
+  const syncSubcategoryDefaults = (optId: string, subcatSlug: string) => {
+    // Reset cross-category variables
+    setCommercialKind('');
+    setPlotType('Residential Layout Plot (DTCP)');
+    setHousingOfferType('For Rent');
+    setServiceSpecialty('');
+
+    if (optId === 'plots-offering') {
+      if (subcatSlug === 'residential-plots') {
+        setPlotType('Residential Layout Plot (DTCP)');
+        setTitle('DTCP Approved Residential Layout Plot for Sale in Hosur');
+      } else if (subcatSlug === 'commercial-land') {
+        setPlotType('Commercial Main Road Site');
+        setTitle('Commercial Main Road Land / Site for Sale in Hosur');
+      } else if (subcatSlug === 'agricultural-farmland') {
+        setPlotType('Agricultural Farmland');
+        setTitle('Agricultural Farmland for Sale near Hosur');
+      } else if (subcatSlug === 'industrial-plots') {
+        setPlotType('Industrial Plot (SIPCOT)');
+        setTitle('Industrial Plot in SIPCOT Zone for Sale in Hosur');
+      } else {
+        setTitle('Residential Layout Plot for Sale in Hosur');
+      }
+    } else if (optId === 'housing-offering') {
+      if (subcatSlug.includes('-sale')) {
+        setHousingOfferType('For Sale');
+        setTitle(subcatSlug === 'apartments-sale' ? '2/3 BHK Apartment for Sale in Hosur' : 'Independent House / Villa for Sale in Hosur');
+      } else if (subcatSlug.includes('rooms') || subcatSlug.includes('pg')) {
+        setHousingOfferType('Bed Space / PG Room');
+        setTitle(subcatSlug === 'pg-hostels' ? 'Paying Guest (PG) Accommodation in Hosur' : 'Single Room / Shared Flat for Rent in Hosur');
+      } else {
+        setHousingOfferType('For Rent');
+        setTitle(subcatSlug === 'houses-rent' ? 'Independent House / Villa for Rent in Hosur' : '2 BHK Apartment for Rent in Hosur');
+      }
+    } else if (optId === 'commercial-offering') {
+      if (subcatSlug === 'commercial-offices') {
+        setCommercialKind('Office Space');
+        setTitle('Commercial Office Space for Rent in Hosur');
+      } else if (subcatSlug === 'retail-shops') {
+        setCommercialKind('Retail Shop / Showroom');
+        setTitle('Main Road Commercial Retail Shop for Rent in Hosur');
+      } else if (subcatSlug === 'warehouses-godowns') {
+        setCommercialKind('Warehouse / Godown');
+        setTitle('Commercial Warehouse / Godown for Rent in Hosur');
+      } else if (subcatSlug === 'industrial-sheds') {
+        setCommercialKind('Industrial Shed / Factory');
+        setTitle('Industrial Shed / Factory for Lease in SIPCOT Hosur');
+      } else if (subcatSlug === 'coworking-desks') {
+        setCommercialKind('Co-Working Desks');
+        setTitle('Co-Working Office Desks for Rent in Hosur');
+      } else {
+        setCommercialKind('Office Space');
+        setTitle('Commercial Property Space for Lease in Hosur');
+      }
+    } else if (optId === 'services-offering') {
+      if (subcatSlug === 'home-repairs') {
+        setServiceSpecialty('Electrical, Plumbing & Carpentry Repairs');
+        setTitle('Professional Home Repair & Electrician Services in Hosur');
+      } else if (subcatSlug === 'appliance-repair') {
+        setServiceSpecialty('AC, Refrigerator & Washing Machine Service');
+        setTitle('AC, Refrigerator & Washing Machine Repair in Hosur');
+      } else if (subcatSlug === 'cleaning-pest') {
+        setServiceSpecialty('Deep House Cleaning & Pest Control');
+        setTitle('Deep Cleaning, Housekeeping & Pest Control Services in Hosur');
+      } else if (subcatSlug === 'movers-packers') {
+        setServiceSpecialty('Movers & Packers / Shifting Transport');
+        setTitle('Movers & Packers & Shifting Transport Services in Hosur');
+      } else if (subcatSlug === 'computer-tech') {
+        setServiceSpecialty('Computer, Laptop & Mobile Repair');
+        setTitle('Computer, Laptop & Mobile Repair Services in Hosur');
+      } else if (subcatSlug === 'accounting-legal') {
+        setServiceSpecialty('GST, Income Tax & Legal Registration');
+        setTitle('GST, Accounting & Business Registration Services in Hosur');
+      } else if (subcatSlug === 'salon-beauty') {
+        setServiceSpecialty('Salon at Home & Bridal Makeup');
+        setTitle('Professional Salon at Home & Bridal Makeup in Hosur');
+      } else if (subcatSlug === 'events-photography') {
+        setServiceSpecialty('Event Photography & Videography');
+        setTitle('Event Photography & Catering Services in Hosur');
+      } else if (subcatSlug === 'domestic-help') {
+        setServiceSpecialty('Cook, Maid & Housekeeping Help');
+        setTitle('Cook, Maid & Housekeeping Domestic Help in Hosur');
+      } else if (subcatSlug === 'auto-repair') {
+        setServiceSpecialty('Car Mechanic, Wash & Detailing');
+        setTitle('Car Mechanic, Doorstep Wash & Detailing in Hosur');
+      } else {
+        setServiceSpecialty('Professional Services');
+        setTitle('Trusted Professional Services in Hosur');
+      }
+    } else if (optId === 'job-seeking') {
+      setTitle('Experienced Professional seeking Job in Hosur');
+    } else if (optId === 'job-offering') {
+      setTitle('Hiring: Qualified Staff / Team Member in Hosur');
+    } else if (optId === 'temp-jobs-hire') {
+      setTitle('Urgent: Temporary Staff / Gig Worker Needed in Hosur');
+    } else if (optId === 'community-rideshare') {
+      setTitle('Daily Ride Share / Carpool: Hosur to Bangalore');
+    } else if (optId === 'community-pet-adoption') {
+      setTitle('Healthy Loving Pet Seeking Adoption in Hosur');
+    } else if (optId === 'community-lost-found') {
+      setTitle('Lost & Found Notice in Hosur');
+    } else if (optId === 'childcare-seeking') {
+      setTitle('Experienced Babysitter & Nanny Available in Hosur');
+    } else if (optId === 'childcare-hire') {
+      setTitle('Seeking Trusted Babysitter & Nanny in Hosur');
+    } else if (optId === 'childcare-daycare') {
+      setTitle('Daycare & Playgroup Center in Hosur');
+    } else if (optId === 'sell-item') {
+      setTitle('');
+    } else if (optId === 'buy-item') {
+      setTitle('');
+    }
+  };
+
   // Helper to change option
   const handleSelectOption = (opt: ExpatriatesOption) => {
     setSelectedOptionId(opt.id);
     if (opt.hasSubcategories && opt.subcategories.length > 0) {
       setBrowsingOptionWithSubcategories(opt);
-      setSelectedSubcategorySlug(opt.subcategories[0].slug);
+      const defaultSubcat = opt.subcategories[0].slug;
+      setSelectedSubcategorySlug(defaultSubcat);
+      syncSubcategoryDefaults(opt.id, defaultSubcat);
     } else {
       setBrowsingOptionWithSubcategories(null);
       setSelectedSubcategorySlug('');
+      syncSubcategoryDefaults(opt.id, '');
       if (opt.pricePlaceholder && !price) {
         setPrice(opt.defaultListingType === 'free' ? '0' : '');
       }
       setStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleSelectSubcategory = (subcat: SubCategory) => {
     setSelectedSubcategorySlug(subcat.slug);
     setBrowsingOptionWithSubcategories(null);
+    syncSubcategoryDefaults(selectedOptionId, subcat.slug);
     setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Multiple Images Upload handler with instant HTML5 Canvas compression
@@ -653,48 +1092,122 @@ export default function PostAd() {
 
     if (selectedOptionId === 'sell-item') {
       if (selectedSubcategorySlug.includes('vehicles') || selectedSubcategorySlug.includes('motorcycles')) {
-        summary += `• Brand / Make: ${vehicleBrand}\n• Model: ${vehicleModel}\n• Year: ${vehicleYear}\n• Fuel Type: ${vehicleFuel}\n• KM Driven: ${vehicleKm}\n• Owners: ${vehicleOwners}\n• Transmission: ${vehicleTransmission}\n`;
+        if (vehicleBrand) summary += `• Brand / Make: ${vehicleBrand}\n`;
+        if (vehicleModel) summary += `• Model: ${vehicleModel}\n`;
+        if (vehicleYear) summary += `• Year: ${vehicleYear}\n`;
+        if (vehicleFuel) summary += `• Fuel Type: ${vehicleFuel}\n`;
+        if (vehicleKm) summary += `• KM Driven: ${vehicleKm}\n`;
+        if (vehicleOwners) summary += `• Ownership: ${vehicleOwners}\n`;
+        if (vehicleTransmission) summary += `• Transmission: ${vehicleTransmission}\n`;
       } else {
-        summary += `• Condition: ${itemCondition}\n• Warranty: ${itemWarranty}\n• Bill & Box: ${itemBillBox}\n`;
+        if (itemCondition) summary += `• Condition: ${itemCondition}\n`;
+        if (itemWarranty) summary += `• Warranty: ${itemWarranty}\n`;
+        if (itemBillBox) summary += `• Bill & Box: ${itemBillBox}\n`;
       }
     } else if (selectedOptionId === 'buy-item') {
-      summary += `• Desired Condition: ${wantedCondition}\n• Urgency: ${wantedUrgency}\n`;
+      if (wantedCondition) summary += `• Desired Condition: ${wantedCondition}\n`;
+      if (wantedUrgency) summary += `• Urgency: ${wantedUrgency}\n`;
     } else if (selectedOptionId === 'job-seeking') {
-      summary += `• Desired Role: ${jobTitle || 'Professional'}\n• Industry: ${jobIndustry}\n• Experience: ${jobExperience}\n• Education: ${jobEducation}\n• Availability: ${jobNoticePeriod}\n• Key Skills: ${jobSkills}\n• Work Mode: ${jobWorkMode}\n`;
+      if (jobTitle) summary += `• Desired Role: ${jobTitle}\n`;
+      if (jobIndustry) summary += `• Industry: ${jobIndustry}\n`;
+      if (jobExperience) summary += `• Experience: ${jobExperience}\n`;
+      if (jobEducation) summary += `• Education: ${jobEducation}\n`;
+      if (jobNoticePeriod) summary += `• Availability: ${jobNoticePeriod}\n`;
+      if (jobSkills) summary += `• Key Skills: ${jobSkills}\n`;
+      if (jobWorkMode) summary += `• Work Mode: ${jobWorkMode}\n`;
     } else if (selectedOptionId === 'job-offering') {
-      summary += `• Designation: ${jobTitle}\n• Company: ${jobCompany}\n• Industry: ${jobIndustry}\n• Employment Type: ${jobType}\n• Experience Required: ${jobExperience}\n• Education: ${jobEducation}\n• Work Location: ${jobWorkMode}\n`;
+      if (jobTitle) summary += `• Designation: ${jobTitle}\n`;
+      if (jobCompany) summary += `• Company: ${jobCompany}\n`;
+      if (jobIndustry) summary += `• Industry: ${jobIndustry}\n`;
+      if (jobType) summary += `• Employment Type: ${jobType}\n`;
+      if (jobExperience) summary += `• Experience Required: ${jobExperience}\n`;
+      if (jobEducation) summary += `• Education: ${jobEducation}\n`;
+      if (jobWorkMode) summary += `• Work Location: ${jobWorkMode}\n`;
     } else if (selectedOptionId === 'temp-jobs-hire') {
-      summary += `• Gig Duration: ${tempDuration}\n• Pay Rate: ${tempPayBasis}\n• Timings: ${tempHours}\n• Immediate Joining: ${tempUrgency}\n`;
+      if (tempDuration) summary += `• Gig Duration: ${tempDuration}\n`;
+      if (tempPayBasis) summary += `• Pay Rate: ${tempPayBasis}\n`;
+      if (tempHours) summary += `• Timings: ${tempHours}\n`;
+      if (tempUrgency) summary += `• Immediate Joining: ${tempUrgency}\n`;
     } else if (selectedOptionId === 'housing-offering') {
-      summary += `• Offer Type: ${housingOfferType}\n• Configuration: ${propertyBhk}\n• Area: ${propertyArea} Sq.Ft\n• Furnishing: ${propertyFurnishing}\n• Floor: ${propertyFloor}\n• Facing: ${propertyFacing}\n• Deposit: ₹${propertyDeposit}\n• Preferred Tenants: ${propertyTenantPref}\n• Available From: ${propertyAvailableFrom}\n`;
+      if (housingOfferType) summary += `• Offer Type: ${housingOfferType}\n`;
+      if (propertyBhk) summary += `• Configuration: ${propertyBhk}\n`;
+      if (propertyArea) summary += `• Area: ${propertyArea} Sq.Ft\n`;
+      if (propertyFurnishing) summary += `• Furnishing: ${propertyFurnishing}\n`;
+      if (propertyFloor) summary += `• Floor: ${propertyFloor}\n`;
+      if (propertyFacing) summary += `• Facing: ${propertyFacing}\n`;
+      if (housingOfferType !== 'For Sale') {
+        if (propertyDeposit) summary += `• Security Deposit: ₹${propertyDeposit}\n`;
+        if (propertyTenantPref) summary += `• Preferred Tenants: ${propertyTenantPref}\n`;
+      } else {
+        if (propertyDeposit) summary += `• Possession / Age: ${propertyDeposit}\n`;
+        if (propertyTenantPref) summary += `• Ownership / Title: ${propertyTenantPref}\n`;
+      }
+      if (propertyAvailableFrom) summary += `• Available From: ${propertyAvailableFrom}\n`;
     } else if (selectedOptionId === 'housing-exchange') {
-      summary += `• Current Property: ${exchangeCurrentLoc}\n• Desired Swap Location: ${exchangeDestination}\n• Duration: ${exchangeDuration}\n`;
+      if (exchangeCurrentLoc) summary += `• Current Property: ${exchangeCurrentLoc}\n`;
+      if (exchangeDestination) summary += `• Desired Swap Location: ${exchangeDestination}\n`;
+      if (exchangeDuration) summary += `• Duration: ${exchangeDuration}\n`;
     } else if (selectedOptionId === 'housing-seeking') {
-      summary += `• Looking for: ${propertyBhk}\n• Target Areas: ${seekPreferredAreas}\n• Tenant Profile: ${seekTenantType}\n`;
+      if (propertyBhk) summary += `• Looking for: ${propertyBhk}\n`;
+      if (seekPreferredAreas) summary += `• Target Areas: ${seekPreferredAreas}\n`;
+      if (seekTenantType) summary += `• Tenant Profile: ${seekTenantType}\n`;
     } else if (selectedOptionId === 'commercial-offering') {
-      summary += `• Commercial Type: ${commercialKind}\n• Area: ${propertyArea} Sq.Ft\n• Power Capacity: ${commercialPowerLoad}\n• Parking: ${commercialParking}\n• Loading Access: ${commercialLoadingDock}\n`;
+      if (commercialKind) summary += `• Commercial Type: ${commercialKind}\n`;
+      if (propertyArea) summary += `• Area: ${propertyArea} Sq.Ft\n`;
+      if (commercialPowerLoad) summary += `• Power Capacity: ${commercialPowerLoad}\n`;
+      if (commercialParking) summary += `• Parking: ${commercialParking}\n`;
+      if (commercialLoadingDock) summary += `• Loading Access: ${commercialLoadingDock}\n`;
     } else if (selectedOptionId === 'plots-offering') {
-      summary += `• Land Type: ${plotType}\n• Plot Extent: ${plotSize}\n• Road Width: ${plotRoadWidth}\n• Approvals: ${plotApproval}\n• Boundary: ${plotFencing}\n`;
+      if (plotType) summary += `• Land Type: ${plotType}\n`;
+      if (plotSize) summary += `• Plot Extent / Size: ${plotSize}\n`;
+      if (plotRoadWidth) summary += `• Road Width in Front: ${plotRoadWidth}\n`;
+      if (plotApproval) summary += `• Approvals: ${plotApproval}\n`;
+      if (plotFencing) summary += `• Boundary: ${plotFencing}\n`;
     } else if (selectedOptionId.startsWith('childcare')) {
-      summary += `• Role / Facility: ${childcareRole}\n• Age Group: ${childcareAgeGroup}\n• Experience: ${childcareExperience}\n• Verified Status: ${childcareCert}\n• Timing: ${childcareTiming}\n`;
+      if (childcareRole) summary += `• Role / Facility: ${childcareRole}\n`;
+      if (childcareAgeGroup) summary += `• Age Group: ${childcareAgeGroup}\n`;
+      if (childcareExperience) summary += `• Experience: ${childcareExperience}\n`;
+      if (childcareCert) summary += `• Verified Status: ${childcareCert}\n`;
+      if (childcareTiming) summary += `• Timing: ${childcareTiming}\n`;
     } else if (selectedOptionId === 'community-lost-found') {
-      summary += `• Case: ${lostFoundStatus}\n• Date: ${lostFoundDate}\n• Exact Landmark: ${lostFoundLocation}\n• Reward: ${lostFoundReward}\n`;
+      if (lostFoundStatus) summary += `• Case: ${lostFoundStatus}\n`;
+      if (lostFoundDate) summary += `• Date: ${lostFoundDate}\n`;
+      if (lostFoundLocation) summary += `• Exact Landmark: ${lostFoundLocation}\n`;
+      if (lostFoundReward) summary += `• Reward: ${lostFoundReward}\n`;
     } else if (selectedOptionId === 'community-rideshare') {
-      summary += `• Route: ${rideOrigin} ➔ ${rideDestination}\n• Commute Schedule: ${rideSchedule}\n• Vehicle: ${rideVehicle}\n• Seats: ${rideSeats}\n• Cost Contribution: ${rideCostShare}\n`;
+      if (rideOrigin || rideDestination) summary += `• Route: ${rideOrigin} ➔ ${rideDestination}\n`;
+      if (rideSchedule) summary += `• Commute Schedule: ${rideSchedule}\n`;
+      if (rideVehicle) summary += `• Vehicle: ${rideVehicle}\n`;
+      if (rideSeats) summary += `• Seats: ${rideSeats}\n`;
+      if (rideCostShare) summary += `• Cost Contribution: ${rideCostShare}\n`;
     } else if (selectedOptionId === 'community-pet-adoption') {
-      summary += `• Pet: ${petType}\n• Age / Gender: ${petAgeGender}\n• Health: ${petHealth}\n`;
+      if (petType) summary += `• Pet: ${petType}\n`;
+      if (petAgeGender) summary += `• Age / Gender: ${petAgeGender}\n`;
+      if (petHealth) summary += `• Health: ${petHealth}\n`;
     } else if (selectedOptionId === 'community-sports') {
-      summary += `• Sport: ${sportName}\n• Skill Level: ${sportLevel}\n• Timing: ${sportTime}\n`;
+      if (sportName) summary += `• Sport: ${sportName}\n`;
+      if (sportLevel) summary += `• Skill Level: ${sportLevel}\n`;
+      if (sportTime) summary += `• Timing: ${sportTime}\n`;
     } else if (selectedOptionId === 'community-musicians') {
-      summary += `• Instrument: ${musicRole}\n• Genre: ${musicGenre}\n`;
+      if (musicRole) summary += `• Instrument: ${musicRole}\n`;
+      if (musicGenre) summary += `• Genre: ${musicGenre}\n`;
     } else if (selectedOptionId === 'community-event') {
-      summary += `• Event: ${eventName}\n• Date & Time: ${eventDate}\n• Venue: ${eventVenue}\n`;
+      if (eventName) summary += `• Event: ${eventName}\n`;
+      if (eventDate) summary += `• Date & Time: ${eventDate}\n`;
+      if (eventVenue) summary += `• Venue: ${eventVenue}\n`;
     } else if (selectedOptionId === 'learning-exchange') {
-      summary += `• Offering Language: ${learnNativeLang}\n• Target Language: ${learnTargetLang}\n• Mode: ${learnMode}\n`;
+      if (learnNativeLang) summary += `• Offering Language: ${learnNativeLang}\n`;
+      if (learnTargetLang) summary += `• Target Language: ${learnTargetLang}\n`;
+      if (learnMode) summary += `• Mode: ${learnMode}\n`;
     } else if (selectedOptionId.startsWith('learning')) {
-      summary += `• Subject: ${learnSubject}\n• Mode: ${learnMode}\n• Level: ${learnLevel}\n`;
+      if (learnSubject) summary += `• Subject: ${learnSubject}\n`;
+      if (learnMode) summary += `• Mode: ${learnMode}\n`;
+      if (learnLevel) summary += `• Level: ${learnLevel}\n`;
     } else if (selectedOptionId === 'services-offering') {
-      summary += `• Service Scope: ${serviceSpecialty}\n• Pricing: ${servicePricingModel}\n• Warranty: ${serviceWarranty}\n• Areas Covered: ${serviceCoverage}\n`;
+      if (serviceSpecialty) summary += `• Service Scope: ${serviceSpecialty}\n`;
+      if (servicePricingModel) summary += `• Pricing: ${servicePricingModel}\n`;
+      if (serviceWarranty) summary += `• Warranty: ${serviceWarranty}\n`;
+      if (serviceCoverage) summary += `• Areas Covered: ${serviceCoverage}\n`;
     }
 
     return summary;
@@ -719,18 +1232,26 @@ export default function PostAd() {
     } else if (step === 2) {
       if (!title.trim()) {
         if (selectedOptionId === 'sell-item') {
-          setTitle(`${vehicleBrand || 'Quality'} ${vehicleModel || 'Item'} for Sale in Hosur`);
+          if (vehicleBrand || vehicleModel) {
+            setTitle(`${vehicleBrand || ''} ${vehicleModel || ''} for Sale in Hosur`.trim());
+          }
         } else if (selectedOptionId === 'housing-offering') {
-          setTitle(`${propertyBhk} ${housingOfferType} in ${location}`);
+          if (propertyBhk) {
+            setTitle(`${propertyBhk} ${housingOfferType} in ${location}`);
+          }
         } else if (selectedOptionId === 'job-seeking') {
-          setTitle(`${jobTitle || 'Candidate'} seeking Job in Hosur`);
+          if (jobTitle) setTitle(`${jobTitle} seeking Job in Hosur`);
         } else if (selectedOptionId === 'job-offering') {
-          setTitle(`Hiring: ${jobTitle || 'Team Member'} in Hosur`);
-        } else if (selectedOptionId === 'community-rideshare') {
-          setTitle(`Daily Ride Share / Carpool: Hosur to Electronic City`);
-        } else {
-          setTitle(`${currentOption.title} - Hosur`);
+          if (jobTitle) setTitle(`Hiring: ${jobTitle} in Hosur`);
+        } else if (selectedOptionId === 'plots-offering') {
+          if (plotSize || plotType) setTitle(`${plotSize ? plotSize + ' ' : ''}${plotType} in Hosur`.trim());
+        } else if (selectedOptionId === 'commercial-offering') {
+          if (commercialKind) setTitle(`${commercialKind} in Hosur`);
+        } else if (selectedOptionId === 'services-offering') {
+          if (serviceSpecialty) setTitle(`${serviceSpecialty} in Hosur`);
         }
+        // NOTE: No conversational option fallback (e.g. "I am offering a plot of land. - Hosur")!
+        // Leaving it empty allows the user to write their title with category-tailored placeholder guidance.
       }
       setStep(3);
     } else if (step === 3) {
@@ -1041,13 +1562,13 @@ export default function PostAd() {
       price: numPrice,
       price_text: formattedPriceText,
       is_negotiable: isNegotiable,
-      condition: condition,
+      condition: isPhysicalGoodOption(selectedOptionId) ? condition : null,
       location_name: location,
       location_text: location,
       contact_name: effectiveSellerName,
       contact_phone: effectivePhone,
       allow_whatsapp: allowWhatsapp,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600'],
+      images: images.length > 0 ? images : [getDefaultImageForCategory(currentSection.id, selectedOptionId, selectedSubcategorySlug)],
       status: 'active',
       views_count: 0,
       is_featured: false,
@@ -1093,7 +1614,7 @@ export default function PostAd() {
           price: numPrice,
           price_text: formattedPriceText,
           is_negotiable: isNegotiable,
-          condition: condition,
+          condition: isPhysicalGoodOption(selectedOptionId) ? condition : null,
           location_name: location,
           location_text: location,
           contact_name: adPayload.contact_name,
@@ -1348,46 +1869,69 @@ export default function PostAd() {
             </div>
           </div>
 
-          {/* Subcategory Drawer Modal (if user clicked an option that has subcategories) */}
+          {/* Subcategory Floating Modal (appears right in the center of user's current viewport) */}
           {browsingOptionWithSubcategories && (
-            <div className="p-6 bg-gradient-to-b from-blue-50/90 to-white rounded-3xl border-2 border-blue-500/40 shadow-lg space-y-4 animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center justify-between border-b border-blue-200/80 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 bg-blue-600 text-white rounded-xl">
-                    <browsingOptionWithSubcategories.icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-black text-slate-900">
-                      Select a Subcategory for: <span className="text-blue-700">{browsingOptionWithSubcategories.title}</span>
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Click the specific item category to advance to tailored details
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setBrowsingOptionWithSubcategories(null)}
-                  className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2">
-                {browsingOptionWithSubcategories.subcategories.map((subcat) => (
-                  <button
-                    key={subcat.id}
-                    type="button"
-                    onClick={() => handleSelectSubcategory(subcat)}
-                    className="p-3 rounded-xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/70 hover:shadow-xs transition-all text-left flex items-center justify-between group cursor-pointer"
-                  >
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
-                      {subcat.name}
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+              onClick={() => setBrowsingOptionWithSubcategories(null)}
+            >
+              <div 
+                className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-blue-50/80 via-white to-blue-50/30">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 bg-blue-600 text-white rounded-2xl shadow-sm flex-shrink-0">
+                      <browsingOptionWithSubcategories.icon className="h-5 w-5" />
                     </span>
-                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-transform" />
+                    <div>
+                      <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                        Select a Subcategory
+                      </h3>
+                      <p className="text-xs text-blue-700 font-semibold mt-0.5 line-clamp-1">
+                        {browsingOptionWithSubcategories.title}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBrowsingOptionWithSubcategories(null)}
+                    className="p-2 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shadow-xs"
+                    title="Close subcategories"
+                  >
+                    <X className="h-4 w-4" />
                   </button>
-                ))}
+                </div>
+
+                {/* Subcategory Options List */}
+                <div className="p-4 sm:p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {browsingOptionWithSubcategories.subcategories.map((subcat) => (
+                    <button
+                      key={subcat.id}
+                      type="button"
+                      onClick={() => handleSelectSubcategory(subcat)}
+                      className="p-3.5 rounded-2xl border border-slate-200/90 bg-white hover:border-blue-500 hover:bg-blue-50/70 hover:shadow-xs transition-all text-left flex items-center justify-between group cursor-pointer"
+                    >
+                      <span className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-snug">
+                        {subcat.name}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-transform flex-shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
+
+                {/* Footer hint */}
+                <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Click any subcategory to proceed to tailored details</span>
+                  <button
+                    type="button"
+                    onClick={() => setBrowsingOptionWithSubcategories(null)}
+                    className="font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1883,26 +2427,53 @@ export default function PostAd() {
                       placeholder="e.g. East Facing" 
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Security Deposit (₹)</label>
-                    <input 
-                      type="number" 
-                      value={propertyDeposit} 
-                      onChange={(e) => setPropertyDeposit(e.target.value)} 
-                      className="input-field py-2 text-xs" 
-                      placeholder="e.g. 50000" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tenant Preference</label>
-                    <input 
-                      type="text" 
-                      value={propertyTenantPref} 
-                      onChange={(e) => setPropertyTenantPref(e.target.value)} 
-                      className="input-field py-2 text-xs" 
-                      placeholder="e.g. Families Only" 
-                    />
-                  </div>
+                  {housingOfferType !== 'For Sale' ? (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Security Deposit (₹)</label>
+                        <input 
+                          type="number" 
+                          value={propertyDeposit} 
+                          onChange={(e) => setPropertyDeposit(e.target.value)} 
+                          className="input-field py-2 text-xs" 
+                          placeholder="e.g. 50000" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Tenant Preference</label>
+                        <input 
+                          type="text" 
+                          value={propertyTenantPref} 
+                          onChange={(e) => setPropertyTenantPref(e.target.value)} 
+                          className="input-field py-2 text-xs" 
+                          placeholder="e.g. Families Only, Vegetarians, Any" 
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Possession / Status</label>
+                        <input 
+                          type="text" 
+                          value={propertyDeposit} 
+                          onChange={(e) => setPropertyDeposit(e.target.value)} 
+                          className="input-field py-2 text-xs" 
+                          placeholder="e.g. Ready to Move, 1-3 Years Old" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Ownership / Approvals</label>
+                        <input 
+                          type="text" 
+                          value={propertyTenantPref} 
+                          onChange={(e) => setPropertyTenantPref(e.target.value)} 
+                          className="input-field py-2 text-xs" 
+                          placeholder="e.g. Freehold, Clear Title, DTCP/HNTDA" 
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Available From</label>
                     <input 
@@ -2478,7 +3049,7 @@ export default function PostAd() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. 2023 Royal Enfield Classic 350 - Single Owner Mint Condition"
+                placeholder={getTitlePlaceholder(selectedOptionId, selectedSubcategorySlug)}
                 className="input-field text-sm font-semibold"
                 required
               />
@@ -2503,18 +3074,20 @@ export default function PostAd() {
                     className="input-field pl-8 text-sm font-bold text-blue-900"
                   />
                 </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="negotiable"
-                    checked={isNegotiable}
-                    onChange={(e) => setIsNegotiable(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="negotiable" className="text-xs text-slate-600 font-medium cursor-pointer">
-                    Price is negotiable / open to reasonable offers
-                  </label>
-                </div>
+                {currentOption.defaultListingType !== 'free' && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="negotiable"
+                      checked={isNegotiable}
+                      onChange={(e) => setIsNegotiable(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="negotiable" className="text-xs text-slate-600 font-medium cursor-pointer">
+                      Price is negotiable / open to reasonable offers
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -2538,17 +3111,19 @@ export default function PostAd() {
               </div>
             </div>
 
-            {/* Item General Condition */}
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">General Condition Rating</label>
-              <select value={condition} onChange={(e) => setCondition(e.target.value)} className="input-field py-2 text-xs font-medium">
-                <option value="new">Brand New</option>
-                <option value="like_new">Like New / Mint</option>
-                <option value="good">Good / Functional</option>
-                <option value="fair">Fair / Used</option>
-                <option value="for_parts">For Parts / Repair</option>
-              </select>
-            </div>
+            {/* Item General Condition - ONLY for physical items / merchandise */}
+            {isPhysicalGoodOption(selectedOptionId) && (
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">General Condition Rating</label>
+                <select value={condition} onChange={(e) => setCondition(e.target.value)} className="input-field py-2 text-xs font-medium">
+                  <option value="new">Brand New</option>
+                  <option value="like_new">Like New / Mint</option>
+                  <option value="good">Good / Functional</option>
+                  <option value="fair">Fair / Used</option>
+                  <option value="for_parts">For Parts / Repair</option>
+                </select>
+              </div>
+            )}
 
             {/* Multiple Photos & Canvas Compression Uploader */}
             <div>
@@ -2653,7 +3228,7 @@ export default function PostAd() {
                 rows={5}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your item, job opportunity, property or community notice in detail. Mention condition, reason for posting, timings, and any other relevant information."
+                placeholder={getDescriptionPlaceholder(selectedOptionId)}
                 className="input-field text-xs leading-relaxed"
                 required
               />
@@ -2740,7 +3315,7 @@ export default function PostAd() {
           <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-xs max-w-2xl mx-auto">
             <div className="relative aspect-video sm:aspect-[21/9] bg-slate-100 overflow-hidden">
               <img 
-                src={images[reviewPhotoIndex] || images[0] || 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600'} 
+                src={images[reviewPhotoIndex] || images[0] || getDefaultImageForCategory(currentSection.id, selectedOptionId, selectedSubcategorySlug)} 
                 alt={title} 
                 className="w-full h-full object-cover" 
               />
