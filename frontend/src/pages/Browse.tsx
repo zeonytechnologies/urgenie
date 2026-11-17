@@ -5,6 +5,7 @@ import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
 import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES, resolvePrimaryCategory, getCategoryDisplayName } from '../data/categories';
 import { getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds } from '../utils/adStorage';
+import { getStoredLocations, fetchLiveLocations } from '../utils/locationStorage';
 
 interface AdDisplayItem {
   id: string;
@@ -115,18 +116,7 @@ export default function Browse() {
       .map(formatBrowseAdItem);
   });
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>(DEFAULT_CATEGORIES);
-  const [locationsList, setLocationsList] = useState<string[]>([
-    'Hosur Town Center',
-    'SIPCOT Phase 1',
-    'SIPCOT Phase 2',
-    'Mathigiri',
-    'Bagalur Road',
-    'Denkanikottai Road',
-    'Rayakottai Road',
-    'Nallur',
-    'Attibele Border',
-    'Zuzuvadi'
-  ]);
+  const [locationsList, setLocationsList] = useState<string[]>(getStoredLocations());
   const [loading, setLoading] = useState(false);
 
   // Scroll to top when pagination page changes
@@ -224,12 +214,9 @@ export default function Browse() {
 
         // 3. Fetch locations non-blockingly
         try {
-          const { data: locData } = await (supabase.from('locations') as any)
-            .select('name')
-            .order('name', { ascending: true });
-
-          if (isMounted && locData && locData.length > 0) {
-            setLocationsList(locData.map((l: any) => l.name));
+          const liveLocs = await fetchLiveLocations();
+          if (isMounted && liveLocs && liveLocs.length > 0) {
+            setLocationsList(liveLocs);
           }
         } catch {}
       } catch (err) {

@@ -1,7 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { CheckCircle2, ShieldCheck, Lock, AlertCircle, Save, KeyRound, Camera, Loader2 } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Lock, AlertCircle, Save, KeyRound, Camera, Loader2, Plus, MapPin, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getStoredLocations, fetchLiveLocations, addCustomLocation } from '../utils/locationStorage';
 
 export default function Profile() {
   const { user, profile, updateProfile, updatePassword } = useAuth();
@@ -9,6 +10,10 @@ export default function Profile() {
   const [fullName, setFullName] = useState(profile?.full_name || 'Kumar');
   const [phone, setPhone] = useState(profile?.phone || '9876543210');
   const [city, setCity] = useState(profile?.city || 'Hosur Town, Tamil Nadu');
+  const [locations, setLocations] = useState<string[]>(getStoredLocations());
+  const [isAddingCustomLoc, setIsAddingCustomLoc] = useState(false);
+  const [customLocInput, setCustomLocInput] = useState('');
+  const [customLocMsg, setCustomLocMsg] = useState<string | null>(null);
   const [bio, setBio] = useState(profile?.bio || '');
   const [allowWhatsapp, setAllowWhatsapp] = useState(profile?.allow_whatsapp !== false);
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
@@ -34,6 +39,30 @@ export default function Profile() {
       if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
     }
   }, [profile]);
+
+  // Load live locations and listen for global updates
+  useEffect(() => {
+    fetchLiveLocations().then((locs) => setLocations(locs));
+
+    const handleLocUpdate = () => {
+      setLocations(getStoredLocations());
+    };
+    window.addEventListener('urgenie-locations-updated', handleLocUpdate);
+    return () => window.removeEventListener('urgenie-locations-updated', handleLocUpdate);
+  }, []);
+
+  const handleSaveCustomLocation = async () => {
+    if (!customLocInput.trim()) return;
+    const added = await addCustomLocation(customLocInput);
+    if (added) {
+      setCity(added);
+      setLocations((prev) => Array.from(new Set([...prev, added])).sort((a, b) => a.localeCompare(b)));
+      setCustomLocInput('');
+      setIsAddingCustomLoc(false);
+      setCustomLocMsg(`"${added}" added to Hosur localities!`);
+      setTimeout(() => setCustomLocMsg(null), 3000);
+    }
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -278,17 +307,95 @@ export default function Profile() {
               </div>
               
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-1.5">Location in Hosur</label>
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="input-field py-2.5"
-                >
-                  <option value="Hosur Town, Tamil Nadu">Hosur Town, Tamil Nadu</option>
-                  <option value="SIPCOT Phase 1, Hosur">SIPCOT Phase 1, Hosur</option>
-                  <option value="Mathigiri, Hosur">Mathigiri, Hosur</option>
-                  <option value="Bagalur Road, Hosur">Bagalur Road, Hosur</option>
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-900">
+                    Location in Hosur
+                  </label>
+                  {!isAddingCustomLoc ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomLoc(true)}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>+ Add Custom Area</span>
+                    </button>
+                  ) : null}
+                </div>
+
+                {!isAddingCustomLoc ? (
+                  <select
+                    value={city}
+                    onChange={(e) => {
+                      if (e.target.value === '__add_new__') {
+                        setIsAddingCustomLoc(true);
+                      } else {
+                        setCity(e.target.value);
+                      }
+                    }}
+                    className="input-field py-2.5 font-medium text-slate-900"
+                  >
+                    {city && !locations.includes(city) && (
+                      <option value={city}>{city}</option>
+                    )}
+                    {locations.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                    <option value="__add_new__">+ Add Custom Locality / Area...</option>
+                  </select>
+                ) : (
+                  <div className="space-y-2 p-3 bg-blue-50/70 border border-blue-200 rounded-2xl animate-in fade-in">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>Add Your Custom Locality or Colony</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={customLocInput}
+                        onChange={(e) => setCustomLocInput(e.target.value)}
+                        placeholder="e.g. Avalapalli HUDCO, Thally Road, Kamraj Nagar..."
+                        className="input-field py-2 text-xs flex-1 bg-white"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSaveCustomLocation();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomLocation}
+                        disabled={!customLocInput.trim()}
+                        className="btn btn-primary py-2 px-3 text-xs font-bold whitespace-nowrap disabled:opacity-50"
+                      >
+                        Add & Select
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCustomLoc(false);
+                          setCustomLocInput('');
+                        }}
+                        className="btn btn-outline py-2 px-2.5 text-xs text-slate-500 hover:bg-slate-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      This custom location will be saved to your profile and added to Hosur localities.
+                    </p>
+                  </div>
+                )}
+
+                {customLocMsg && (
+                  <p className="text-xs text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5" /> {customLocMsg}
+                  </p>
+                )}
               </div>
 
               <div>

@@ -5,6 +5,7 @@ import * as Icons from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
 import { getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds } from '../utils/adStorage';
+import { getStoredLocations, fetchLiveLocations } from '../utils/locationStorage';
 import { resolvePrimaryCategory } from '../data/categories';
 
 interface CategoryItem {
@@ -41,18 +42,7 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'community', name: 'Community', icon: 'Users', count: 0 },
 ];
 
-const DEFAULT_HOME_LOCATIONS = [
-  'Hosur Town Center',
-  'SIPCOT Phase 1',
-  'SIPCOT Phase 2',
-  'Mathigiri',
-  'Bagalur Road',
-  'Denkanikottai Road',
-  'Rayakottai Road',
-  'Nallur',
-  'Attibele Border',
-  'Zuzuvadi'
-];
+const DEFAULT_HOME_LOCATIONS = getStoredLocations();
 
 const CATEGORY_COLOR_MAP: Record<string, { bg: string; text: string; ring: string }> = {
   vehicles: { bg: 'bg-indigo-500/10', text: 'text-indigo-600', ring: 'group-hover:border-indigo-500' },
@@ -199,13 +189,10 @@ export default function Home() {
         }
 
         // Parallel background location fetch
-        (supabase.from('locations') as any)
-          .select('name')
-          .eq('is_active', true)
-          .order('name', { ascending: true })
-          .then(({ data: locData }: any) => {
-            if (isMounted && locData && locData.length > 0) {
-              setLocations(locData.map((l: any) => l.name));
+        fetchLiveLocations()
+          .then((locNames) => {
+            if (isMounted && locNames && locNames.length > 0) {
+              setLocations(locNames);
             }
           })
           .catch(() => {});

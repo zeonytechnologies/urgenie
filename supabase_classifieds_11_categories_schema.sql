@@ -13,7 +13,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'listing_type') THEN
     CREATE TYPE public.listing_type AS ENUM (
       'new',       -- N: Sell New
-      'preowned',  -- P: Sell Pre-owned
+      'preowned',  -- Used
       'rent',      -- R: Rent / Lease
       'job',       -- J: Job post
       'service',   -- S: Service

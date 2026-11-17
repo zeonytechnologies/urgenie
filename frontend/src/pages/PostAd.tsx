@@ -20,10 +20,13 @@ import {
   User,
   Phone,
   Eye,
-  EyeOff
+  EyeOff,
+  Crop
 } from 'lucide-react';
+import ImageCropperModal from '../components/ui/ImageCropperModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getStoredLocations, fetchLiveLocations, addCustomLocation } from '../utils/locationStorage';
 import { 
   EXPATRIATES_SECTIONS, 
   ALL_EXPATRIATES_OPTIONS, 
@@ -34,19 +37,6 @@ import {
   type ExpatriatesOption,
   type SubCategory
 } from '../data/categories';
-
-const DEFAULT_LOCATIONS = [
-  'Hosur Town Center',
-  'SIPCOT Phase 1',
-  'SIPCOT Phase 2',
-  'Mathigiri',
-  'Bagalur Road',
-  'Denkanikottai Road',
-  'Rayakottai Road',
-  'Nallur',
-  'Attibele Border',
-  'Zuzuvadi'
-];
 
 // Helper to determine if an option represents physical goods / merchandise
 export const isPhysicalGoodOption = (optionId: string) => {
@@ -321,11 +311,19 @@ export default function PostAd() {
   const [isNegotiable, setIsNegotiable] = useState(true);
   const [condition, setCondition] = useState('good');
   const [location, setLocation] = useState('Hosur Town Center');
-  const [locationsList] = useState<string[]>(DEFAULT_LOCATIONS);
+  const [locationsList, setLocationsList] = useState<string[]>(getStoredLocations());
+  const [isAddingCustomLocation, setIsAddingCustomLocation] = useState(false);
+  const [customLocationInput, setCustomLocationInput] = useState('');
+  const [customLocationMsg, setCustomLocationMsg] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [reviewPhotoIndex, setReviewPhotoIndex] = useState(0);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Image Cropper & Resizer state
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState<string | null>(null);
+  const [cropperTargetIndex, setCropperTargetIndex] = useState<number | null>(null);
   const [sellerName, setSellerName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [allowWhatsapp, setAllowWhatsapp] = useState(true);
@@ -829,6 +827,30 @@ export default function PostAd() {
   const currentOption = getOptionById(selectedOptionId) || ALL_EXPATRIATES_OPTIONS[0];
   const currentSection = getSectionForOption(selectedOptionId) || EXPATRIATES_SECTIONS[0];
 
+  // Sync live locations and listen for global updates
+  useEffect(() => {
+    fetchLiveLocations().then((locs) => setLocationsList(locs));
+
+    const handleLocUpdate = () => {
+      setLocationsList(getStoredLocations());
+    };
+    window.addEventListener('urgenie-locations-updated', handleLocUpdate);
+    return () => window.removeEventListener('urgenie-locations-updated', handleLocUpdate);
+  }, []);
+
+  const handleSaveCustomLocation = async () => {
+    if (!customLocationInput.trim()) return;
+    const added = await addCustomLocation(customLocationInput);
+    if (added) {
+      setLocation(added);
+      setLocationsList((prev) => Array.from(new Set([...prev, added])).sort((a, b) => a.localeCompare(b)));
+      setCustomLocationInput('');
+      setIsAddingCustomLocation(false);
+      setCustomLocationMsg(`"${added}" added and selected!`);
+      setTimeout(() => setCustomLocationMsg(null), 3000);
+    }
+  };
+
   // Helper to sync category/subcategory defaults into Step 2 state and provide a tailored title
   const syncSubcategoryDefaults = (optId: string, subcatSlug: string) => {
     // Reset cross-category variables
@@ -972,6 +994,58 @@ export default function PostAd() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Open cropper for an existing image
+  const handleOpenCropperForExisting = (imgUrl: string, index: number) => {
+    setCropperImageSrc(imgUrl);
+    setCropperTargetIndex(index);
+    setCropperOpen(true);
+  };
+
+  // Handle applying a cropped image from the ImageCropperModal
+  const handleApplyCrop = async (croppedDataUrl: string) => {
+    if (cropperTargetIndex !== null) {
+      // Replace existing image at cropperTargetIndex
+      setImages((prev) => {
+        const next = [...prev];
+        next[cropperTargetIndex] = croppedDataUrl;
+        return next;
+      });
+    } else {
+      // Appending newly uploaded and cropped photo
+      setImages((prev) => [...prev, croppedDataUrl]);
+    }
+
+    // Background storage sync if bucket exists
+    try {
+      const fileName = `ad_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+      const res = await fetch(croppedDataUrl);
+      const blob = await res.blob();
+      const { error: storageError } = await supabase.storage
+        .from('ad-images')
+        .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+
+      if (!storageError) {
+        const { data: publicData } = supabase.storage.from('ad-images').getPublicUrl(fileName);
+        if (publicData?.publicUrl) {
+          const publicUrl = publicData.publicUrl;
+          if (cropperTargetIndex !== null) {
+            setImages((prev) => {
+              const next = [...prev];
+              if (next[cropperTargetIndex] === croppedDataUrl) {
+                next[cropperTargetIndex] = publicUrl;
+              }
+              return next;
+            });
+          } else {
+            setImages((prev) => prev.map((img) => (img === croppedDataUrl ? publicUrl : img)));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Storage sync fallback:', e);
+    }
+  };
+
   // Multiple Images Upload handler with instant HTML5 Canvas compression
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -982,9 +1056,28 @@ export default function PostAd() {
       return;
     }
 
-    setUploadingImage(true);
     setUploadError(null);
 
+    // If exactly 1 file is uploaded, open ImageCropperModal directly for immediate framing
+    if (files.length === 1) {
+      const file = files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        setUploadError(`"${file.name}" exceeds 10MB limit.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const rawUrl = event.target?.result as string;
+        setCropperImageSrc(rawUrl);
+        setCropperTargetIndex(null); // Indicates newly added photo
+        setCropperOpen(true);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingImage(true);
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
@@ -1772,33 +1865,37 @@ export default function PostAd() {
 
         {/* Step Indicator */}
         {step < 5 && (
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3 mt-6">
-            <div className={`flex items-center gap-2 text-xs font-bold ${step === 1 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${step === 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3 mt-6 overflow-x-auto no-scrollbar gap-1 sm:gap-2">
+            <div className={`flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold whitespace-nowrap ${step === 1 ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] ${step === 1 ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'}`}>
                 1
               </div>
-              <span>Category & Intent</span>
+              <span className="hidden sm:inline">Category & Intent</span>
+              <span className="sm:hidden">Category</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-300" />
-            <div className={`flex items-center gap-2 text-xs font-bold ${step === 2 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${step === 2 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-300 flex-shrink-0" />
+            <div className={`flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold whitespace-nowrap ${step === 2 ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] ${step === 2 ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'}`}>
                 2
               </div>
-              <span>Tailored Specs</span>
+              <span className="hidden sm:inline">Tailored Specs</span>
+              <span className="sm:hidden">Specs</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-300" />
-            <div className={`flex items-center gap-2 text-xs font-bold ${step === 3 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${step === 3 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-300 flex-shrink-0" />
+            <div className={`flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold whitespace-nowrap ${step === 3 ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] ${step === 3 ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'}`}>
                 3
               </div>
-              <span>Details & Photos</span>
+              <span className="hidden sm:inline">Details & Photos</span>
+              <span className="sm:hidden">Details</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-300" />
-            <div className={`flex items-center gap-2 text-xs font-bold ${step === 4 ? 'text-blue-600' : 'text-slate-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${step === 4 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-300 flex-shrink-0" />
+            <div className={`flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold whitespace-nowrap ${step === 4 ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] ${step === 4 ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'}`}>
                 4
               </div>
-              <span>Review & Publish</span>
+              <span className="hidden sm:inline">Review & Publish</span>
+              <span className="sm:hidden">Publish</span>
             </div>
           </div>
         )}
@@ -3091,20 +3188,92 @@ export default function PostAd() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Hosur Locality / Area <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="input-field text-xs font-semibold"
-                >
-                  {locationsList.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-800">
+                    Hosur Locality / Area <span className="text-rose-500">*</span>
+                  </label>
+                  {!isAddingCustomLocation && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomLocation(true)}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>+ Add Custom Area</span>
+                    </button>
+                  )}
+                </div>
+
+                {!isAddingCustomLocation ? (
+                  <select
+                    value={location}
+                    onChange={(e) => {
+                      if (e.target.value === '__add_new__') {
+                        setIsAddingCustomLocation(true);
+                      } else {
+                        setLocation(e.target.value);
+                      }
+                    }}
+                    className="input-field text-xs font-semibold"
+                  >
+                    {location && !locationsList.includes(location) && (
+                      <option value={location}>{location}</option>
+                    )}
+                    {locationsList.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                    <option value="__add_new__">+ Add Custom Locality / Area...</option>
+                  </select>
+                ) : (
+                  <div className="space-y-2 p-3 bg-blue-50/70 border border-blue-200 rounded-2xl animate-in fade-in">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>Add Your Custom Locality or Area</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={customLocationInput}
+                        onChange={(e) => setCustomLocationInput(e.target.value)}
+                        placeholder="e.g. Avalapalli HUDCO, Thally Road, Kamraj Nagar..."
+                        className="input-field py-2 text-xs flex-1 bg-white"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSaveCustomLocation();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomLocation}
+                        disabled={!customLocationInput.trim()}
+                        className="btn btn-primary py-2 px-3 text-xs font-bold whitespace-nowrap disabled:opacity-50"
+                      >
+                        Add & Use
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCustomLocation(false);
+                          setCustomLocationInput('');
+                        }}
+                        className="btn btn-outline py-2 px-2.5 text-xs text-slate-500 hover:bg-slate-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {customLocationMsg && (
+                  <p className="text-xs text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5" /> {customLocationMsg}
+                  </p>
+                )}
+
                 <p className="text-[11px] text-slate-400 mt-1">
                   Accurate local tagging helps buyers find your ad within Hosur
                 </p>
@@ -3127,12 +3296,20 @@ export default function PostAd() {
 
             {/* Multiple Photos & Canvas Compression Uploader */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                 <label className="block text-xs font-bold text-slate-800">
                   Listing Photos <span className="text-slate-400 font-normal">({images.length}/10 photos)</span>
                 </label>
                 {images.length > 0 && (
-                  <span className="text-[11px] text-blue-600 font-medium">First photo will be the main cover</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCropperForExisting(images[0], 0)}
+                    className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-xl transition-colors cursor-pointer"
+                    title="Crop cover photo to fit ad cards"
+                  >
+                    <Crop className="h-3.5 w-3.5" />
+                    <span>Crop Cover Photo</span>
+                  </button>
                 )}
               </div>
 
@@ -3168,6 +3345,17 @@ export default function PostAd() {
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
+
+                        {/* Crop / Resize Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCropperForExisting(imgUrl, idx)}
+                          className="absolute bottom-1.5 inset-x-1.5 py-1 px-1.5 rounded-lg bg-black/75 hover:bg-blue-600 text-white text-[10px] font-black backdrop-blur-xs flex items-center justify-center gap-1 shadow-md transition-all active:scale-95 cursor-pointer"
+                          title="Crop and resize this photo"
+                        >
+                          <Crop className="h-3 w-3 text-blue-300" />
+                          <span>Crop / Resize</span>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -3195,10 +3383,10 @@ export default function PostAd() {
                           <Upload className="h-5 w-5" />
                         </div>
                         <span className="text-xs font-black text-slate-800">
-                          {images.length === 0 ? 'Click or Tap to Upload Photos (Select Multiple)' : 'Add More Photos'}
+                          {images.length === 0 ? 'Click or Tap to Upload & Crop Photos' : 'Add More Photos'}
                         </span>
                         <span className="text-[11px] text-slate-400">
-                          Supports multiple JPG, PNG, WEBP. Max 10MB per image.
+                          Supports JPG, PNG, WEBP. Instant Image Studio opens to crop & frame to size.
                         </span>
                       </div>
                     )}
@@ -3756,6 +3944,19 @@ export default function PostAd() {
           </div>
         </div>
       )}
+
+      {/* Interactive Image Cropper & Resizer Studio */}
+      <ImageCropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropperImageSrc}
+        onClose={() => {
+          setCropperOpen(false);
+          setCropperImageSrc(null);
+          setCropperTargetIndex(null);
+        }}
+        onApplyCrop={handleApplyCrop}
+        title={cropperTargetIndex !== null ? `Crop & Resize Photo #${cropperTargetIndex + 1}` : 'Crop & Frame Your Photo'}
+      />
     </div>
   );
 }

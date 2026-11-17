@@ -60,6 +60,20 @@ ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT fals
 ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Category specific indexed columns
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS brand TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS year INT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS fuel_type TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS km_driven INT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS transmission TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS owners_count TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS bhk TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS area_sqft INT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS furnishing TEXT;
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS deposit_amount NUMERIC(12,2);
+ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS job_type TEXT;
+
 -- 4. Re-create indexes for lightning-fast queries
 CREATE INDEX IF NOT EXISTS idx_ads_category ON public.ads(category_id);
 CREATE INDEX IF NOT EXISTS idx_ads_subcategory ON public.ads(subcategory_id);
@@ -120,27 +134,99 @@ CREATE TABLE IF NOT EXISTS public.categories (
   sort_order INT DEFAULT 0
 );
 
+-- Ensure all category columns exist even if the table already existed previously
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT 'Tag';
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS short_name TEXT;
+
+-- Drop restrictive NOT NULL constraints that block inserts
+DO $$ BEGIN
+  ALTER TABLE public.categories ALTER COLUMN icon DROP NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.categories ALTER COLUMN slug DROP NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.categories ALTER COLUMN description DROP NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.categories ALTER COLUMN listing_types DROP NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Categories allow select" ON public.categories;
 CREATE POLICY "Categories allow select" ON public.categories FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Categories allow insert" ON public.categories;
 CREATE POLICY "Categories allow insert" ON public.categories FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Categories allow update" ON public.categories;
+CREATE POLICY "Categories allow update" ON public.categories FOR UPDATE USING (true) WITH CHECK (true);
 GRANT ALL ON TABLE public.categories TO anon, authenticated, service_role;
 
-INSERT INTO public.categories (id, name, slug, sort_order)
+INSERT INTO public.categories (id, name, slug, icon, sort_order)
 VALUES
-  ('vehicles', 'Vehicles & Bikes', 'vehicles-bikes', 1),
-  ('property', 'Houses & Properties', 'houses-properties', 2),
-  ('mobiles-tech', 'Mobiles & Tech', 'mobiles-tech', 3),
-  ('electronics', 'Electronics & Appliances', 'electronics-appliances', 4),
-  ('jobs', 'Jobs & Careers', 'jobs-careers', 5),
-  ('business', 'Business', 'business', 6),
-  ('services', 'Local Services', 'local-services', 7),
-  ('buy-sell', 'Buy & Sell', 'buy-sell', 8),
-  ('furniture', 'Home & Furniture', 'home-furniture', 9),
-  ('commercial', 'Commercial & Industrial', 'commercial-industrial', 10),
-  ('community', 'Community', 'community', 11)
+  ('vehicles', 'Vehicles & Bikes', 'vehicles-bikes', 'Car', 1),
+  ('property', 'Houses & Properties', 'houses-properties', 'Building2', 2),
+  ('mobiles-tech', 'Mobiles & Tech', 'mobiles-tech', 'Smartphone', 3),
+  ('electronics', 'Electronics & Appliances', 'electronics-appliances', 'Tv', 4),
+  ('jobs', 'Jobs & Careers', 'jobs-careers', 'Briefcase', 5),
+  ('business', 'Business', 'business', 'Store', 6),
+  ('services', 'Local Services', 'local-services', 'Wrench', 7),
+  ('buy-sell', 'Buy & Sell', 'buy-sell', 'ShoppingBag', 8),
+  ('furniture', 'Home & Furniture', 'home-furniture', 'Sofa', 9),
+  ('commercial', 'Commercial & Industrial', 'commercial-industrial', 'Factory', 10),
+  ('community', 'Community', 'community', 'Users', 11)
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   slug = EXCLUDED.slug,
+  icon = COALESCE(EXCLUDED.icon, categories.icon, 'Tag'),
   sort_order = EXCLUDED.sort_order;
+
+-- 8. Storage Bucket for Ad Images and Profile Avatars (wrapped in safe blocks)
+DO $$
+BEGIN
+  INSERT INTO storage.buckets (id, name, public)
+  VALUES ('ad-images', 'ad-images', true)
+  ON CONFLICT (id) DO UPDATE SET public = true;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  INSERT INTO storage.buckets (id, name, public)
+  VALUES ('avatars', 'avatars', true)
+  ON CONFLICT (id) DO UPDATE SET public = true;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- Storage RLS
+DO $$
+BEGIN
+  DROP POLICY IF EXISTS "Public Access to ad-images" ON storage.objects;
+  CREATE POLICY "Public Access to ad-images" ON storage.objects FOR SELECT USING (bucket_id = 'ad-images');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  DROP POLICY IF EXISTS "Allow Uploads to ad-images" ON storage.objects;
+  CREATE POLICY "Allow Uploads to ad-images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'ad-images');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  DROP POLICY IF EXISTS "Allow Delete ad-images" ON storage.objects;
+  CREATE POLICY "Allow Delete ad-images" ON storage.objects FOR DELETE USING (bucket_id = 'ad-images');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;

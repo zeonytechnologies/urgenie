@@ -373,10 +373,13 @@ export default function AdDetails() {
   const canManage = isOwner || isAdmin;
   const phoneNumber = ad.phone || '9876543210';
   const rawDigits = phoneNumber.replace(/[^\d]/g, '');
+  const telNumber = rawDigits.length === 10
+    ? `+91${rawDigits}`
+    : (rawDigits.startsWith('91') && rawDigits.length === 12 ? `+${rawDigits}` : rawDigits);
   const waNumber = rawDigits.startsWith('91') ? rawDigits : `91${rawDigits}`;
 
   return (
-    <div className="container mx-auto px-4 lg:px-6 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 lg:px-6 py-8 pb-24 sm:pb-12 max-w-6xl">
       {/* Breadcrumbs */}
       <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mb-6 font-semibold">
         <div className="flex items-center gap-2 truncate">
@@ -748,26 +751,51 @@ export default function AdDetails() {
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Direct Call Button (Functional href="tel:...") */}
+                <a
+                  href={`tel:${telNumber}`}
+                  className="btn btn-primary w-full py-3.5 gap-2 rounded-2xl text-sm font-black justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
+                >
+                  <Phone className="h-4 w-4 animate-pulse" />
+                  <span>Call Seller {showNumber ? `(${phoneNumber})` : ''}</span>
+                </a>
+
                 {/* WhatsApp Button with Glow */}
                 {ad.allow_whatsapp !== false && (
                   <a
                     href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn w-full py-3.5 gap-2 bg-[#25D366] text-white hover:bg-[#1fb858] rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-black justify-center transition-all hover:scale-102"
+                    className="btn w-full py-3.5 gap-2 bg-[#25D366] text-white hover:bg-[#1fb858] rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-black justify-center transition-all hover:scale-102 active:scale-95"
                   >
                     <MessageCircle className="h-5 w-5" /> Chat on WhatsApp
                   </a>
                 )}
 
-                {/* Show Phone Number */}
-                <button
-                  onClick={() => setShowNumber(true)}
-                  className="btn btn-outline w-full py-3 gap-2 rounded-2xl text-xs sm:text-sm font-extrabold justify-center"
-                >
-                  <Phone className="h-4 w-4 text-blue-600" />
-                  {showNumber ? phoneNumber : 'Show Phone Number'}
-                </button>
+                {/* Reveal / Copy Phone Number Option */}
+                {!showNumber ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowNumber(true)}
+                    className="btn btn-outline w-full py-2.5 gap-2 rounded-2xl text-xs font-bold justify-center text-slate-600 hover:bg-slate-50 transition-all border-slate-200"
+                  >
+                    <Phone className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Show Phone Number</span>
+                  </button>
+                ) : (
+                  <div className="p-3 bg-blue-50/80 rounded-2xl border border-blue-200/80 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 text-slate-800 font-extrabold">
+                      <Phone className="h-3.5 w-3.5 text-blue-600" />
+                      <span>{phoneNumber}</span>
+                    </div>
+                    <a
+                      href={`tel:${telNumber}`}
+                      className="text-xs font-black text-blue-600 hover:underline"
+                    >
+                      Dial Now &rarr;
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -834,6 +862,29 @@ export default function AdDetails() {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {/* Sticky Bottom Contact Bar for Mobile Devices */}
+      {ad.status !== 'sold' && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 p-3 sm:hidden shadow-[0_-8px_25px_rgba(0,0,0,0.12)] flex items-center gap-2.5">
+          <a
+            href={`tel:${telNumber}`}
+            className="flex-1 btn btn-primary py-3 gap-2 rounded-xl text-xs font-black justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20 active:scale-95"
+          >
+            <Phone className="h-4 w-4 flex-shrink-0" />
+            <span>Call Seller</span>
+          </a>
+          {ad.allow_whatsapp !== false && (
+            <a
+              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 btn py-3 gap-2 rounded-xl text-xs font-black justify-center bg-[#25D366] text-white hover:bg-[#1fb858] shadow-md shadow-emerald-600/20 active:scale-95"
+            >
+              <MessageCircle className="h-4 w-4 flex-shrink-0" />
+              <span>WhatsApp</span>
+            </a>
+          )}
         </div>
       )}
     </div>

@@ -3,48 +3,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Menu, X, PlusCircle, User as UserIcon, Shield, LogOut, ChevronDown, Heart, Package } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { getStoredLocations, fetchLiveLocations } from '../../utils/locationStorage';
 import logoImg from '../../assets/img/logo.png';
-
-const DEFAULT_NAV_LOCATIONS = [
-  'Hosur Town Center',
-  'SIPCOT Phase 1',
-  'SIPCOT Phase 2',
-  'Mathigiri',
-  'Bagalur Road',
-  'Denkanikottai Road',
-  'Rayakottai Road',
-  'Nallur',
-  'Attibele Border',
-  'Zuzuvadi'
-];
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('Hosur');
-  const [locations, setLocations] = useState<string[]>(DEFAULT_NAV_LOCATIONS);
+  const [locations, setLocations] = useState<string[]>(getStoredLocations());
   const { user, profile, isAdmin, isSeller, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchLiveLocations = async () => {
-      try {
-        const { data, error } = await (supabase.from('locations') as any)
-          .select('name')
-          .eq('is_active', true)
-          .order('name', { ascending: true });
-        
-        if (!error && data && data.length > 0) {
-          const names = data.map((l: any) => l.name);
-          setLocations(names);
-        }
-      } catch (err) {
-        console.warn('Navbar using default locations');
-      }
+    fetchLiveLocations().then((names) => setLocations(names));
+
+    const handleLocUpdate = () => {
+      setLocations(getStoredLocations());
     };
-    fetchLiveLocations();
+    window.addEventListener('urgenie-locations-updated', handleLocUpdate);
+    return () => window.removeEventListener('urgenie-locations-updated', handleLocUpdate);
   }, []);
 
   const handleLocationChange = (newLoc: string) => {
@@ -142,14 +120,14 @@ export default function Navbar() {
           </form>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {user ? (
               <div className="relative">
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2.5 p-1.5 pr-2.5 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
+                  className="flex items-center gap-1.5 sm:gap-2.5 p-1 sm:p-1.5 pr-1.5 sm:pr-2.5 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
                 >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-sm ring-2 ring-white overflow-hidden flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-xs sm:text-sm shadow-sm ring-2 ring-white overflow-hidden flex-shrink-0">
                     {profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt={profile.full_name || 'User'} className="w-full h-full object-cover" />
                     ) : (
@@ -169,64 +147,71 @@ export default function Navbar() {
 
                 {/* User Dropdown */}
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-60 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-4 py-2.5 border-b border-slate-100">
-                      <p className="text-[11px] text-slate-400 font-semibold">Signed in as</p>
-                      <p className="text-xs font-bold text-slate-900 truncate">{profile?.email || user.email}</p>
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
-                        isAdmin ? 'bg-purple-100 text-purple-700' :
-                        isSeller ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {profile?.role || 'User'}
-                      </span>
-                    </div>
+                  <>
+                    {/* Backdrop for easy closing */}
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/10 sm:bg-transparent"
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                    <div className="fixed top-[68px] right-3 w-[min(260px,calc(100vw-24px))] sm:absolute sm:top-full sm:right-0 sm:left-auto sm:w-60 sm:mt-2 bg-white/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-2.5 border-b border-slate-100">
+                        <p className="text-[11px] text-slate-400 font-semibold">Signed in as</p>
+                        <p className="text-xs font-bold text-slate-900 truncate">{profile?.email || user.email}</p>
+                        <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
+                          isAdmin ? 'bg-purple-100 text-purple-700' :
+                          isSeller ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {profile?.role || 'User'}
+                        </span>
+                      </div>
 
-                    {isAdmin && (
+                      {isAdmin && (
+                        <Link 
+                          to="/admin" 
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 transition-colors"
+                        >
+                          <Shield className="h-4 w-4 text-purple-600" />
+                          Admin Dashboard
+                        </Link>
+                      )}
+
                       <Link 
-                        to="/admin" 
+                        to="/profile" 
                         onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        <Shield className="h-4 w-4 text-purple-600" />
-                        Admin Dashboard
+                        <UserIcon className="h-4 w-4 text-slate-400" />
+                        My Profile
                       </Link>
-                    )}
+                      <Link 
+                        to="/profile/ads" 
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Package className="h-4 w-4 text-slate-400" />
+                        My Advertisements
+                      </Link>
+                      <Link 
+                        to="/profile/saved" 
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Heart className="h-4 w-4 text-slate-400" />
+                        Saved Bookmarks
+                      </Link>
 
-                    <Link 
-                      to="/profile" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <UserIcon className="h-4 w-4 text-slate-400" />
-                      My Profile
-                    </Link>
-                    <Link 
-                      to="/profile/ads" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <Package className="h-4 w-4 text-slate-400" />
-                      My Advertisements
-                    </Link>
-                    <Link 
-                      to="/profile/saved" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <Heart className="h-4 w-4 text-slate-400" />
-                      Saved Bookmarks
-                    </Link>
+                      <hr className="my-1.5 border-slate-100" />
 
-                    <hr className="my-1.5 border-slate-100" />
-
-                    <button 
-                      onClick={handleSignOut}
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
+                      <button 
+                        onClick={handleSignOut}
+                        className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
@@ -242,15 +227,15 @@ export default function Navbar() {
 
             <Link 
               to="/post-ad" 
-              className="btn btn-primary gap-2 rounded-2xl px-5 py-2.5 shadow-md shadow-blue-600/20 text-xs uppercase tracking-wider font-extrabold hover:scale-102 transition-transform"
+              className="btn btn-primary gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 shadow-md shadow-blue-600/20 text-[11px] sm:text-xs uppercase tracking-wider font-extrabold hover:scale-102 transition-transform whitespace-nowrap flex items-center justify-center flex-shrink-0"
             >
-              <PlusCircle className="h-4 w-4" />
+              <PlusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span>Post Free Ad</span>
             </Link>
 
             {/* Mobile Menu Toggle */}
             <button 
-              className="lg:hidden p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors"
+              className="lg:hidden p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors flex-shrink-0"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle Navigation"
             >
