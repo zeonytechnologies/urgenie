@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, ChevronRight, Sparkles, ShieldCheck, Tag, PlusCircle, Package } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import AdCard from '../components/ui/AdCard';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getDeletedAdIds, purgeDeletedAndStaleLocalAds, getLocalAds } from '../utils/adStorage';
 import { getStoredLocations, fetchLiveLocations } from '../utils/locationStorage';
@@ -121,6 +122,7 @@ function computeHomeCategoryCounts(items: any[]): CategoryItem[] {
 }
 
 export default function Home() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('Hosur');
   const [locations, setLocations] = useState<string[]>(DEFAULT_HOME_LOCATIONS);
@@ -136,6 +138,10 @@ export default function Home() {
   });
 
   const navigate = useNavigate();
+
+  const getProtectedLink = (target: string) => {
+    return user ? target : `/login?redirect=${encodeURIComponent(target)}`;
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -214,7 +220,12 @@ export default function Home() {
     } else if (newLoc === 'Hosur') {
       params.set('location', 'Hosur');
     }
-    navigate(`/browse?${params.toString()}`);
+    const target = `/browse?${params.toString()}`;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(target)}`);
+    } else {
+      navigate(target);
+    }
   };
 
   const handleSearch = (e: FormEvent) => {
@@ -226,7 +237,12 @@ export default function Home() {
     } else if (selectedLocation === 'Hosur') {
       params.set('location', 'Hosur');
     }
-    navigate(`/browse?${params.toString()}`);
+    const target = `/browse?${params.toString()}`;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(target)}`);
+    } else {
+      navigate(target);
+    }
   };
 
   return (
@@ -304,16 +320,16 @@ export default function Home() {
             <span className="font-extrabold text-slate-700 flex items-center gap-1">
               <Tag className="h-3.5 w-3.5 text-blue-600" /> Popular in Hosur:
             </span>
-            <Link to="/category/jobs" className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
+            <Link to={getProtectedLink('/category/jobs')} className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
               Industrial Jobs
             </Link>
-            <Link to="/category/property" className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
+            <Link to={getProtectedLink('/category/property')} className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
               Houses for Rent
             </Link>
-            <Link to="/category/vehicles" className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
+            <Link to={getProtectedLink('/category/vehicles')} className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
               Second-Hand Bikes
             </Link>
-            <Link to="/category/services" className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
+            <Link to={getProtectedLink('/category/services')} className="px-3 py-1 rounded-full bg-white border border-slate-200/80 hover:border-blue-400 hover:text-blue-600 transition-all shadow-2xs">
               Home Services
             </Link>
           </div>
@@ -362,7 +378,7 @@ export default function Home() {
             <div className="text-xs font-extrabold uppercase tracking-widest text-blue-600 mb-1">Browse by Sector</div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Explore Categories</h2>
           </div>
-          <Link to="/browse" className="text-xs sm:text-sm font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
+          <Link to={getProtectedLink('/browse')} className="text-xs sm:text-sm font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
             <span>View All Categories</span>
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
@@ -376,7 +392,7 @@ export default function Home() {
             return (
               <Link 
                 key={category.id} 
-                to={`/category/${category.id}`}
+                to={getProtectedLink(`/category/${category.id}`)}
                 className={`group flex flex-col items-center justify-center p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-card-hover ${style.ring} hover:-translate-y-1 transition-all duration-200`}
               >
                 <div className={`w-12 h-12 rounded-2xl ${style.bg} ${style.text} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200 shadow-2xs`}>
@@ -399,7 +415,7 @@ export default function Home() {
             <div className="text-xs font-extrabold uppercase tracking-widest text-emerald-600 mb-1">Live in Hosur</div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Fresh Recommendations</h2>
           </div>
-          <Link to="/browse" className="text-xs sm:text-sm font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
+          <Link to={getProtectedLink('/browse')} className="text-xs sm:text-sm font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 group">
             <span>Explore All Ads</span>
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>

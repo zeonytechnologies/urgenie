@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { 
   MapPin, 
   Clock, 
@@ -17,7 +17,8 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Camera
+  Camera,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -131,7 +132,24 @@ function findLocalAd(targetSlug?: string) {
 export default function AdDetails() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const location = useLocation();
+  const { user, isAdmin, loading: authLoading } = useAuth();
+
+  // If restoring session from storage, render smooth loader
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Checking credentials...</p>
+      </div>
+    );
+  }
+
+  // Without login, redirect to login
+  if (!user) {
+    const targetUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${targetUrl}`} replace />;
+  }
 
   const [showNumber, setShowNumber] = useState(false);
   const [isSaved, setIsSaved] = useState(false);

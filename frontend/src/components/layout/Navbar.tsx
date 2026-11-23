@@ -25,6 +25,10 @@ export default function Navbar() {
     return () => window.removeEventListener('urgenie-locations-updated', handleLocUpdate);
   }, []);
 
+  const getProtectedLink = (target: string) => {
+    return user ? target : `/login?redirect=${encodeURIComponent(target)}`;
+  };
+
   const handleLocationChange = (newLoc: string) => {
     setSelectedLocation(newLoc);
     const params = new URLSearchParams();
@@ -34,7 +38,12 @@ export default function Navbar() {
     } else if (newLoc === 'Hosur') {
       params.set('location', 'Hosur');
     }
-    navigate(`/browse?${params.toString()}`);
+    const target = `/browse?${params.toString()}`;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(target)}`);
+    } else {
+      navigate(target);
+    }
   };
 
   const handleSearch = (e: FormEvent) => {
@@ -46,7 +55,12 @@ export default function Navbar() {
     } else if (selectedLocation === 'Hosur') {
       params.set('location', 'Hosur');
     }
-    navigate(`/browse?${params.toString()}`);
+    const target = `/browse?${params.toString()}`;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(target)}`);
+    } else {
+      navigate(target);
+    }
   };
 
   const handleSignOut = async () => {
@@ -69,16 +83,16 @@ export default function Navbar() {
             
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-1">
-              <Link to="/browse" className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
+              <Link to={getProtectedLink('/browse')} className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
                 Browse All
               </Link>
-              <Link to="/category/jobs" className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
+              <Link to={getProtectedLink('/category/jobs')} className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
                 Jobs
               </Link>
-              <Link to="/category/property" className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
+              <Link to={getProtectedLink('/category/property')} className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
                 Property
               </Link>
-              <Link to="/category/vehicles" className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
+              <Link to={getProtectedLink('/category/vehicles')} className="px-3 py-1.5 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 rounded-xl transition-all">
                 Vehicles
               </Link>
             </nav>
@@ -261,10 +275,10 @@ export default function Navbar() {
         </form>
 
         <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
-          <Link to="/browse" onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Browse All Ads</Link>
-          <Link to="/category/jobs" onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Jobs</Link>
-          <Link to="/category/property" onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Property</Link>
-          <Link to="/category/vehicles" onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Vehicles</Link>
+          <Link to={getProtectedLink('/browse')} onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Browse All Ads</Link>
+          <Link to={getProtectedLink('/category/jobs')} onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Jobs</Link>
+          <Link to={getProtectedLink('/category/property')} onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Property</Link>
+          <Link to={getProtectedLink('/category/vehicles')} onClick={() => setIsMenuOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl">Vehicles</Link>
           
           <hr className="border-slate-100 my-1" />
           

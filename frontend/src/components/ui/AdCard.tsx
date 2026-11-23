@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Clock, Tag, Sparkles, Eye, CheckCircle2, Camera } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { getCategoryDisplayName } from '../../data/categories';
 
 interface AdCardProps {
@@ -29,14 +30,16 @@ const LISTING_TYPE_BADGES: Record<string, { label: string; bg: string; text: str
 };
 
 export default function AdCard({ ad }: AdCardProps) {
+  const { user } = useAuth();
   const typeKey = (ad.listingType || '').toLowerCase();
   const typeBadge = LISTING_TYPE_BADGES[typeKey];
   const isSold = ad.status === 'sold';
   const categoryLabel = getCategoryDisplayName(ad.category);
+  const targetLink = user ? `/ad/${ad.id}` : `/login?redirect=${encodeURIComponent(`/ad/${ad.id}`)}`;
 
   return (
     <Link 
-      to={`/ad/${ad.id}`} 
+      to={targetLink} 
       className={`group flex flex-col h-full bg-white rounded-2xl border transition-all duration-300 overflow-hidden relative ${
         isSold 
           ? 'border-slate-300 opacity-90' 

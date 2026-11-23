@@ -119,6 +119,15 @@ export default function Register() {
           </div>
         )}
 
+        {effectiveRedirect && !hasAdDraft && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200/80 rounded-2xl flex items-center gap-3 text-blue-950 text-xs font-medium animate-in fade-in">
+            <Sparkles className="h-5 w-5 flex-shrink-0 text-blue-600" />
+            <div>
+              <span className="font-bold">Sign In / Registration Required:</span> Create a free account to explore categories and view local listings in Hosur.
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700 text-xs font-medium">
             <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
@@ -272,7 +281,7 @@ export default function Register() {
                   <span>Creating Account...</span>
                 </>
               ) : (
-                <span>{effectiveRedirect ? 'Create Account & Continue to Ad' : 'Create Account'}</span>
+                <span>{hasAdDraft ? 'Create Account & Continue to Ad' : (effectiveRedirect ? 'Create Account & Continue' : 'Create Account')}</span>
               )}
             </button>
           </form>

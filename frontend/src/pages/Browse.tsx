@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, Sparkles } from 'lucide-react';
+import { useParams, useSearchParams, Link, useLocation, Navigate } from 'react-router-dom';
+import { Filter, SlidersHorizontal, X, Search, RotateCcw, Package, PlusCircle, Sparkles, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import AdCard from '../components/ui/AdCard';
 import { supabase } from '../lib/supabase';
 import { CATEGORIES, LISTING_TYPES, CLASSIFIEDS_CATEGORIES, resolvePrimaryCategory, getCategoryDisplayName } from '../data/categories';
@@ -86,9 +87,27 @@ function formatBrowseAdItem(item: any): AdDisplayItem {
 }
 
 export default function Browse() {
+  const { user, loading: authLoading } = useAuth();
+  const location = useLocation();
   const { category: paramCategory, subcategory: paramSubcategory } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  // If session is restoring from storage, render smooth loader
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Checking credentials...</p>
+      </div>
+    );
+  }
+
+  // Without login, do not show any category data - redirect directly to login
+  if (!user) {
+    const targetUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${targetUrl}`} replace />;
+  }
 
   // Filter States
   const [selectedListingType, setSelectedListingType] = useState<string>(
