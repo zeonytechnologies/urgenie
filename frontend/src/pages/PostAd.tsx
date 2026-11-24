@@ -3429,7 +3429,15 @@ export default function PostAd() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Your Name</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    {currentSection.id === 'jobs' 
+                      ? 'Employer / Recruiter / Company Name' 
+                      : currentSection.id === 'services' 
+                        ? 'Service Provider / Business Name' 
+                        : (currentSection.id === 'housing' || currentSection.id === 'commercial-property' || currentSection.id === 'plots')
+                          ? 'Property Owner / Agent Name'
+                          : 'Your Name / Seller Name'}
+                  </label>
                   <input
                     type="text"
                     value={sellerName}
@@ -3457,7 +3465,7 @@ export default function PostAd() {
                 />
                 <label htmlFor="whatsapp" className="text-xs text-slate-700 font-medium cursor-pointer flex items-center gap-1.5">
                   <span className="text-emerald-700 font-bold">Allow WhatsApp Inquiries</span>
-                  <span className="text-slate-400 text-[11px]">(Recommended for faster buyer connections)</span>
+                  <span className="text-slate-400 text-[11px]">(Recommended for faster connections)</span>
                 </label>
               </div>
             </div>
@@ -3501,13 +3509,18 @@ export default function PostAd() {
 
           {/* Ad Live Preview Card */}
           <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-xs max-w-2xl mx-auto">
-            <div className="relative aspect-video sm:aspect-[21/9] bg-slate-100 overflow-hidden">
+            <div className="relative min-h-[220px] max-h-[380px] bg-slate-950 flex items-center justify-center overflow-hidden">
+              {/* Blurred Ambient Backdrop */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+                style={{ backgroundImage: `url(${images[reviewPhotoIndex] || images[0] || getDefaultImageForCategory(currentSection.id, selectedOptionId, selectedSubcategorySlug)})` }}
+              />
               <img 
                 src={images[reviewPhotoIndex] || images[0] || getDefaultImageForCategory(currentSection.id, selectedOptionId, selectedSubcategorySlug)} 
                 alt={title} 
-                className="w-full h-full object-cover" 
+                className="relative z-10 max-h-[380px] w-auto max-w-full object-contain mx-auto transition-all drop-shadow-md" 
               />
-              <div className="absolute top-3 left-3 flex items-center gap-2">
+              <div className="absolute top-3 left-3 flex items-center gap-2 z-20">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${currentSection.badgeBg}`}>
                   {currentSection.title}
                 </span>
@@ -3516,13 +3529,17 @@ export default function PostAd() {
                 </span>
               </div>
               {images.length > 1 && (
-                <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                <div className="absolute top-3 right-3 z-20 bg-black/70 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
                   <Camera className="h-3.5 w-3.5" />
                   <span>{reviewPhotoIndex + 1} / {images.length} Photos</span>
                 </div>
               )}
-              <div className="absolute bottom-3 right-3 bg-blue-600 text-white font-black text-base px-3 py-1.5 rounded-xl shadow-lg">
-                {currentOption.defaultListingType === 'free' ? 'Free' : `₹${Number(price || 0).toLocaleString()}`}
+              <div className="absolute bottom-3 right-3 z-20 bg-blue-600 text-white font-black text-base px-3 py-1.5 rounded-xl shadow-lg">
+                {currentOption.defaultListingType === 'free' 
+                  ? 'Free' 
+                  : (currentSection.id === 'jobs' 
+                      ? (Number(price || 0) > 0 ? `₹${Number(price || 0).toLocaleString()} / Month` : 'Competitive Salary')
+                      : `₹${Number(price || 0).toLocaleString()}`)}
               </div>
             </div>
 

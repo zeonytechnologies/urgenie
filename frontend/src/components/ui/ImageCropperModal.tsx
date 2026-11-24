@@ -18,7 +18,8 @@ type AspectRatioOption = {
 };
 
 const ASPECT_RATIOS: AspectRatioOption[] = [
-  { id: '16-10', label: '16:10', sublabel: 'Card Fit', ratio: 16 / 10, badge: 'Recommended' },
+  { id: 'original', label: 'Original', sublabel: 'Keep Full', ratio: 0, badge: 'Recommended' },
+  { id: '16-10', label: '16:10', sublabel: 'Wide', ratio: 16 / 10 },
   { id: '4-3', label: '4:3', sublabel: 'Standard', ratio: 4 / 3 },
   { id: '1-1', label: '1:1', sublabel: 'Square', ratio: 1 / 1 },
   { id: '3-4', label: '3:4', sublabel: 'Portrait', ratio: 3 / 4 },
@@ -89,15 +90,21 @@ export default function ImageCropperModal({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Determine rotated natural dimensions
+    const isSideways = rotation === 90 || rotation === 270;
+    const effWidth = isSideways ? img.naturalHeight : img.naturalWidth;
+    const effHeight = isSideways ? img.naturalWidth : img.naturalHeight;
+    const activeRatio = selectedRatio.ratio > 0 ? selectedRatio.ratio : (effWidth / effHeight);
+
     // Viewport box dimensions
     const maxBoxWidth = 360;
     const maxBoxHeight = 240;
     let boxWidth = maxBoxWidth;
-    let boxHeight = maxBoxWidth / selectedRatio.ratio;
+    let boxHeight = maxBoxWidth / activeRatio;
 
     if (boxHeight > maxBoxHeight) {
       boxHeight = maxBoxHeight;
-      boxWidth = boxHeight * selectedRatio.ratio;
+      boxWidth = boxHeight * activeRatio;
     }
 
     // Set canvas display size
@@ -113,11 +120,6 @@ export default function ImageCropperModal({
     // Fill dark background
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, boxWidth, boxHeight);
-
-    // Determine rotated natural dimensions
-    const isSideways = rotation === 90 || rotation === 270;
-    const effWidth = isSideways ? img.naturalHeight : img.naturalWidth;
-    const effHeight = isSideways ? img.naturalWidth : img.naturalHeight;
 
     // Calculate base scale to fill box
     const baseScale = Math.max(boxWidth / effWidth, boxHeight / effHeight);
@@ -189,8 +191,18 @@ export default function ImageCropperModal({
     const img = imageObjRef.current;
     if (!img) return;
 
-    const targetWidth = 1200;
-    const targetHeight = Math.round(1200 / selectedRatio.ratio);
+    const isSideways = rotation === 90 || rotation === 270;
+    const effWidth = isSideways ? img.naturalHeight : img.naturalWidth;
+    const effHeight = isSideways ? img.naturalWidth : img.naturalHeight;
+    const activeRatio = selectedRatio.ratio > 0 ? selectedRatio.ratio : (effWidth / effHeight);
+
+    const maxDim = 1200;
+    let targetWidth = 1200;
+    let targetHeight = Math.round(1200 / activeRatio);
+    if (targetHeight > maxDim) {
+      targetHeight = maxDim;
+      targetWidth = Math.round(maxDim * activeRatio);
+    }
 
     const outCanvas = document.createElement('canvas');
     outCanvas.width = targetWidth;
@@ -206,16 +218,13 @@ export default function ImageCropperModal({
     const maxBoxWidth = 360;
     const maxBoxHeight = 240;
     let boxWidth = maxBoxWidth;
-    let boxHeight = maxBoxWidth / selectedRatio.ratio;
+    let boxHeight = maxBoxWidth / activeRatio;
     if (boxHeight > maxBoxHeight) {
       boxHeight = maxBoxHeight;
-      boxWidth = boxHeight * selectedRatio.ratio;
+      boxWidth = boxHeight * activeRatio;
     }
 
     const scaleFactor = targetWidth / boxWidth;
-    const isSideways = rotation === 90 || rotation === 270;
-    const effWidth = isSideways ? img.naturalHeight : img.naturalWidth;
-    const effHeight = isSideways ? img.naturalWidth : img.naturalHeight;
     const baseScale = Math.max(boxWidth / effWidth, boxHeight / effHeight);
     const currentScale = baseScale * zoom;
 
@@ -271,7 +280,7 @@ export default function ImageCropperModal({
           <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
             Select Output Framing / Aspect Ratio:
           </label>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5">
             {ASPECT_RATIOS.map((option) => (
               <button
                 key={option.id}

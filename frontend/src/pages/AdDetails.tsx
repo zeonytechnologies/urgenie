@@ -48,6 +48,10 @@ function mapDbAdToDisplayAd(data: any, sellerProfile?: any) {
   }
   if (!lType) lType = 'preowned';
 
+  const rawCat = data.category_id || data.category || '';
+  const rawSub = data.subcategory_id || data.subcategory || '';
+  const resolvedCat = resolvePrimaryCategory(rawCat, rawSub);
+
   const priceVal = Number(data.price || 0);
   let formattedPrice = `₹${priceVal.toLocaleString()}`;
   if (lType === 'free') {
@@ -57,11 +61,9 @@ function mapDbAdToDisplayAd(data: any, sellerProfile?: any) {
   } else if (lType === 'rent') {
     const period = (data.attributes?.rent_period || data.attributes?.['Rent Period'] || 'Month').replace(/^Per\s+/i, '');
     formattedPrice = `₹${priceVal.toLocaleString()} / ${period}`;
+  } else if (resolvedCat === 'jobs' || lType === 'job') {
+    formattedPrice = priceVal > 0 ? `₹${priceVal.toLocaleString()} / Month` : 'Competitive Salary';
   }
-
-  const rawCat = data.category_id || data.category || '';
-  const rawSub = data.subcategory_id || data.subcategory || '';
-  const resolvedCat = resolvePrimaryCategory(rawCat, rawSub);
 
   // Gather category-specific attributes only
   const mergedAttrs = { ...(data.attributes || {}) };
@@ -127,6 +129,151 @@ function findLocalAd(targetSlug?: string) {
     }
   } catch {}
   return null;
+}
+
+function getCategoryDisplayConfig(category: string, listingType?: string) {
+  const cat = (category || '').toLowerCase();
+  const lType = (listingType || '').toLowerCase();
+
+  if (cat === 'jobs') {
+    return {
+      profileHeading: 'Employer / Recruiter Profile',
+      verifiedBadge: 'Verified Hosur Employer',
+      profileSubtitle: 'Active employer hiring on URGENIE Hosur',
+      callButtonLabel: 'Call Employer / HR',
+      chatButtonLabel: 'Apply via WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I am interested in applying for the job opening "${title}" on URGENIE Hosur. Could you please share more details?`,
+      priceLabel: 'Monthly Salary',
+      specsHeading: 'Job Overview & Requirements',
+      descriptionHeading: 'Job Description & Role Responsibilities',
+      safetyTip: 'Safety tip: Never pay any upfront registration or processing fees for job interviews or job offers.',
+      soldOutBadge: 'Position Filled',
+      soldOutAlertTitle: 'This Job Opening is Closed / Filled',
+      soldOutAlertDesc: 'The employer has closed applications for this role.',
+      markSoldLabel: 'Mark as Position Filled',
+      reopenLabel: 'Reopen Job Posting',
+    };
+  }
+
+  if (cat === 'services') {
+    return {
+      profileHeading: 'Service Provider Profile',
+      verifiedBadge: 'Verified Service Professional',
+      profileSubtitle: 'Trusted local service provider on URGENIE Hosur',
+      callButtonLabel: 'Call Service Provider',
+      chatButtonLabel: 'Book via WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I would like to inquire about your service "${title}" listed on URGENIE Hosur. Are you available?`,
+      priceLabel: 'Service Fee / Visit Charge',
+      specsHeading: 'Service Scope & Specifications',
+      descriptionHeading: 'Service Overview & Coverage',
+      safetyTip: 'Safety tip: Confirm service scope, visit charges, and pricing clearly before starting work.',
+      soldOutBadge: 'Service Booked',
+      soldOutAlertTitle: 'This Service is Currently Booked',
+      soldOutAlertDesc: 'The service provider is not taking new bookings at this time.',
+      markSoldLabel: 'Mark as Booked / Full',
+      reopenLabel: 'Reactivate Service',
+    };
+  }
+
+  if (cat === 'property' || cat === 'commercial') {
+    const isRent = lType === 'rent';
+    return {
+      profileHeading: isRent ? 'Property Owner / Landlord' : 'Property Seller / Agent',
+      verifiedBadge: 'Verified Property Lister',
+      profileSubtitle: 'Active property lister on URGENIE Hosur',
+      callButtonLabel: 'Call Property Owner',
+      chatButtonLabel: 'Inquire on WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I am interested in your property listing "${title}" on URGENIE Hosur. Is it available for inspection?`,
+      priceLabel: isRent ? 'Monthly Rent' : 'Expected Sale Price',
+      specsHeading: 'Property Specifications & Amenities',
+      descriptionHeading: 'Property Description & Terms',
+      safetyTip: 'Safety tip: Always physically inspect the property, check title documents, and meet the owner in person before paying advance.',
+      soldOutBadge: isRent ? 'Rented Out' : 'Property Sold',
+      soldOutAlertTitle: isRent ? 'This Property Has Been Rented Out' : 'This Property Has Been Sold',
+      soldOutAlertDesc: 'Inquiries are closed for this property.',
+      markSoldLabel: isRent ? 'Mark as Rented Out' : 'Mark as Sold',
+      reopenLabel: 'Reactivate Property',
+    };
+  }
+
+  if (cat === 'community') {
+    return {
+      profileHeading: 'Community Organizer',
+      verifiedBadge: 'Verified Hosur Resident',
+      profileSubtitle: 'Active community member on URGENIE Hosur',
+      callButtonLabel: 'Call Contact Person',
+      chatButtonLabel: 'Connect on WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I saw your community post "${title}" on URGENIE Hosur and would like to connect.`,
+      priceLabel: 'Cost / Contribution',
+      specsHeading: 'Activity & Event Details',
+      descriptionHeading: 'Notice & Community Details',
+      safetyTip: 'Safety tip: Meet in public places around Hosur and verify community activity details.',
+      soldOutBadge: 'Activity Closed',
+      soldOutAlertTitle: 'This Community Notice is Closed',
+      soldOutAlertDesc: 'This activity or notice has concluded.',
+      markSoldLabel: 'Mark as Closed',
+      reopenLabel: 'Reactivate Notice',
+    };
+  }
+
+  if (cat === 'learning' || cat === 'childcare') {
+    return {
+      profileHeading: 'Instructor / Caregiver Profile',
+      verifiedBadge: 'Verified Tutor / Caregiver',
+      profileSubtitle: 'Active education & care provider on URGENIE Hosur',
+      callButtonLabel: 'Contact Instructor',
+      chatButtonLabel: 'Inquire on WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I am inquiring about your tuition/childcare listing "${title}" on URGENIE Hosur.`,
+      priceLabel: 'Tuition / Service Fee',
+      specsHeading: 'Class & Schedule Specifications',
+      descriptionHeading: 'Course Details & Scope',
+      safetyTip: 'Safety tip: Check background references, qualifications, and demo classes before committing.',
+      soldOutBadge: 'Admissions Full',
+      soldOutAlertTitle: 'Admissions / Slots Are Full',
+      soldOutAlertDesc: 'This provider is not currently accepting new students.',
+      markSoldLabel: 'Mark as Full',
+      reopenLabel: 'Open Admissions',
+    };
+  }
+
+  if (cat === 'vehicles') {
+    return {
+      profileHeading: 'Vehicle Seller Profile',
+      verifiedBadge: 'Verified Vehicle Owner',
+      profileSubtitle: 'Active vehicle seller on URGENIE Hosur',
+      callButtonLabel: 'Call Vehicle Seller',
+      chatButtonLabel: 'Chat on WhatsApp',
+      whatsappMessage: (title: string) => `Hi, I am interested in buying your vehicle "${title}" listed on URGENIE Hosur. Is it available for a test drive?`,
+      priceLabel: 'Vehicle Price',
+      specsHeading: 'Vehicle Specs & History',
+      descriptionHeading: 'Vehicle Condition & Details',
+      safetyTip: 'Safety tip: Verify RC book, insurance, and service history. Take a test drive in daylight before purchasing.',
+      soldOutBadge: 'Vehicle Sold',
+      soldOutAlertTitle: 'This Vehicle Has Been Sold',
+      soldOutAlertDesc: 'The seller has marked this vehicle as sold.',
+      markSoldLabel: 'Mark as Sold',
+      reopenLabel: 'Reactivate Vehicle',
+    };
+  }
+
+  // Default: Physical Goods (mobiles, electronics, furniture, buy-sell)
+  return {
+    profileHeading: 'Seller Profile',
+    verifiedBadge: 'Verified Hosur Seller',
+    profileSubtitle: 'Active community seller on URGENIE Hosur',
+    callButtonLabel: 'Call Seller',
+    chatButtonLabel: 'Chat on WhatsApp',
+    whatsappMessage: (title: string) => `Hi, I am interested in purchasing your item "${title}" on URGENIE Hosur.`,
+    priceLabel: 'Item Price',
+    specsHeading: 'Specifications & Details',
+    descriptionHeading: 'Item Description',
+    safetyTip: 'Safety tip: Inspect and test the item in person around Hosur before transferring money.',
+    soldOutBadge: 'Item Sold Out',
+    soldOutAlertTitle: 'This Item is Sold Out',
+    soldOutAlertDesc: 'The seller has marked this item as sold. Inquiries are closed.',
+    markSoldLabel: 'Mark as Sold Out',
+    reopenLabel: 'Reactivate Listing',
+  };
 }
 
 export default function AdDetails() {
@@ -389,6 +536,8 @@ export default function AdDetails() {
 
   const isOwner = user && ad.user_id === user.id;
   const canManage = isOwner || isAdmin;
+  const catConfig = getCategoryDisplayConfig(ad.category, ad.listing_type);
+  const currentImageSrc = (ad.images && ad.images[selectedImageIndex]) || ad.image;
   const phoneNumber = ad.phone || '9876543210';
   const rawDigits = phoneNumber.replace(/[^\d]/g, '');
   const telNumber = rawDigits.length === 10
@@ -420,18 +569,25 @@ export default function AdDetails() {
         <div className="flex-1 min-w-0">
           {/* Image Gallery */}
           <div className="bg-white rounded-3xl p-3 border border-slate-200/80 shadow-xs mb-6">
-            <div className="aspect-[4/3] md:aspect-[16/10] bg-slate-100 rounded-2xl overflow-hidden relative group">
+            <div className="w-full min-h-[300px] sm:min-h-[380px] max-h-[580px] bg-slate-950 rounded-2xl overflow-hidden relative group flex items-center justify-center shadow-inner">
+              {/* Subtle ambient blurred background */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center blur-2xl opacity-35 scale-110 pointer-events-none"
+                style={{ backgroundImage: `url(${currentImageSrc})` }}
+              />
+
+              {/* Full Uncut Image in natural ratio */}
               <img 
-                src={(ad.images && ad.images[selectedImageIndex]) || ad.image} 
+                src={currentImageSrc} 
                 alt={ad.title} 
-                className="w-full h-full object-cover" 
+                className="relative z-10 max-h-[560px] w-auto max-w-full object-contain mx-auto transition-transform duration-300 drop-shadow-md" 
               />
               
               {/* Sold Out Watermark Stamp */}
               {ad.status === 'sold' && (
-                <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                  <div className="border-4 border-red-500 text-red-500 font-black text-3xl sm:text-4xl tracking-widest px-6 py-2 rounded-xl rotate-[-12deg] bg-black/60 shadow-2xl uppercase">
-                    SOLD OUT
+                <div className="absolute inset-0 z-20 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                  <div className="border-4 border-red-500 text-red-500 font-black text-2xl sm:text-3xl tracking-widest px-6 py-2 rounded-xl rotate-[-12deg] bg-black/70 shadow-2xl uppercase">
+                    {catConfig.soldOutBadge}
                   </div>
                 </div>
               )}
@@ -442,7 +598,7 @@ export default function AdDetails() {
                   <button
                     type="button"
                     onClick={() => setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : ad.images.length - 1))}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
                     title="Previous photo"
                   >
                     <ChevronLeft className="h-5 w-5" />
@@ -450,19 +606,19 @@ export default function AdDetails() {
                   <button
                     type="button"
                     onClick={() => setSelectedImageIndex((prev) => (prev < ad.images.length - 1 ? prev + 1 : 0))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md opacity-80 group-hover:opacity-100"
                     title="Next photo"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
-                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                  <div className="absolute bottom-4 left-4 z-30 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md">
                     <Camera className="h-3.5 w-3.5" />
                     <span>{selectedImageIndex + 1} / {ad.images.length}</span>
                   </div>
                 </>
               )}
 
-              <div className="absolute top-4 right-4 flex gap-2">
+              <div className="absolute top-4 right-4 z-30 flex gap-2">
                 <button 
                   onClick={handleShare}
                   className="w-10 h-10 rounded-2xl bg-white/90 backdrop-blur-md shadow-md flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-white transition-all cursor-pointer"
@@ -506,11 +662,11 @@ export default function AdDetails() {
             <div className="mb-6 p-4.5 bg-red-50 border-2 border-red-500/40 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
               <div className="flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xs uppercase tracking-wider shadow-md shadow-red-500/20 flex-shrink-0">
-                  SOLD
+                  {catConfig.soldOutBadge}
                 </div>
                 <div>
-                  <h4 className="font-black text-red-950 text-sm">This Listing is Sold Out</h4>
-                  <p className="text-xs text-red-700 font-medium">The seller has marked this item as completed or sold. Inquiries are closed.</p>
+                  <h4 className="font-black text-red-950 text-sm">{catConfig.soldOutAlertTitle}</h4>
+                  <p className="text-xs text-red-700 font-medium">{catConfig.soldOutAlertDesc}</p>
                 </div>
               </div>
               {canManage && (
@@ -518,7 +674,7 @@ export default function AdDetails() {
                   onClick={handleToggleSold}
                   className="self-start sm:self-auto text-xs font-black text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
-                  Reactivate Listing
+                  {catConfig.reopenLabel}
                 </button>
               )}
             </div>
@@ -531,7 +687,7 @@ export default function AdDetails() {
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   {ad.status === 'sold' && (
                     <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-xs">
-                      Sold Out
+                      {catConfig.soldOutBadge}
                     </span>
                   )}
                   {ad.listing_type && (
@@ -563,13 +719,18 @@ export default function AdDetails() {
                   </div>
                 </div>
               </div>
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                {ad.price}
+              <div className="text-left md:text-right">
+                <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider mb-0.5">
+                  {catConfig.priceLabel}
+                </span>
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                  {ad.price}
+                </div>
               </div>
             </div>
 
             {/* Dynamic Attributes & Category Specs */}
-            <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">Specifications & Details</h3>
+            <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">{catConfig.specsHeading}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 mb-8 p-4 bg-slate-50/80 rounded-2xl border border-slate-200/60">
               {ad.subcategory && (
                 <div className="p-3.5 bg-white rounded-xl border border-slate-100 shadow-2xs flex flex-col justify-center">
@@ -683,7 +844,7 @@ export default function AdDetails() {
               })()}
             </div>
 
-            <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">Item Description</h3>
+            <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3">{catConfig.descriptionHeading}</h3>
             <div className="text-slate-700 leading-relaxed space-y-4 mb-8 whitespace-pre-line text-sm font-medium">
               <p>
                 {(() => {
@@ -715,7 +876,7 @@ export default function AdDetails() {
                       }`}
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      {ad.status === 'sold' ? 'Mark as Active' : 'Mark as Sold Out'}
+                      {ad.status === 'sold' ? catConfig.reopenLabel : catConfig.markSoldLabel}
                     </button>
 
                     <button
@@ -741,7 +902,7 @@ export default function AdDetails() {
         {/* Sidebar Contact Card */}
         <div className="lg:w-88 flex-shrink-0 space-y-6">
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-card sticky top-24">
-            <h3 className="font-black text-slate-900 mb-4 text-xs uppercase tracking-widest">Seller Profile</h3>
+            <h3 className="font-black text-slate-900 mb-4 text-xs uppercase tracking-widest">{catConfig.profileHeading}</h3>
             
             <div className="flex items-center gap-3.5 mb-5">
               <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl font-black shadow-md">
@@ -751,20 +912,20 @@ export default function AdDetails() {
                 <h4 className="font-extrabold text-slate-900 text-base">{ad.seller}</h4>
                 <div className="flex items-center gap-1 text-xs text-emerald-600 font-extrabold mt-0.5">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Verified Hosur Seller</span>
+                  <span>{catConfig.verifiedBadge}</span>
                 </div>
               </div>
             </div>
 
-            <p className="text-xs text-slate-400 mb-5 font-semibold">Active community seller on URGENIE Hosur</p>
+            <p className="text-xs text-slate-400 mb-5 font-semibold">{catConfig.profileSubtitle}</p>
 
             {ad.status === 'sold' ? (
               <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-2">
                 <span className="inline-block px-3 py-1 bg-red-100 text-red-700 font-black text-xs rounded-full uppercase tracking-wider">
-                  Item Sold Out
+                  {catConfig.soldOutBadge}
                 </span>
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                  Direct inquiries and WhatsApp messaging are closed because this advertisement has been marked as sold.
+                  {catConfig.soldOutAlertDesc}
                 </p>
               </div>
             ) : (
@@ -775,18 +936,18 @@ export default function AdDetails() {
                   className="btn btn-primary w-full py-3.5 gap-2 rounded-2xl text-sm font-black justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
                 >
                   <Phone className="h-4 w-4 animate-pulse" />
-                  <span>Call Seller {showNumber ? `(${phoneNumber})` : ''}</span>
+                  <span>{catConfig.callButtonLabel} {showNumber ? `(${phoneNumber})` : ''}</span>
                 </a>
 
                 {/* WhatsApp Button with Glow */}
                 {ad.allow_whatsapp !== false && (
                   <a
-                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(catConfig.whatsappMessage(ad.title))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn w-full py-3.5 gap-2 bg-[#25D366] text-white hover:bg-[#1fb858] rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-black justify-center transition-all hover:scale-102 active:scale-95"
                   >
-                    <MessageCircle className="h-5 w-5" /> Chat on WhatsApp
+                    <MessageCircle className="h-5 w-5" /> {catConfig.chatButtonLabel}
                   </a>
                 )}
 
@@ -819,7 +980,7 @@ export default function AdDetails() {
 
             <div className="mt-6 p-4 bg-amber-50/80 rounded-2xl border border-amber-200/70 text-xs text-amber-900 flex items-start gap-2.5 font-medium">
               <ShieldAlert className="h-4 w-4 flex-shrink-0 text-amber-600 mt-0.5" />
-              <p>Safety tip: Inspect the item in person around Hosur before transferring money.</p>
+              <p>{catConfig.safetyTip}</p>
             </div>
           </div>
         </div>
