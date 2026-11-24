@@ -110,7 +110,7 @@ function mapDbAdToDisplayAd(data: any, sellerProfile?: any) {
       : [(data.image || (data.images && data.images[0]) || 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=500')],
     description: data.description,
     condition: data.condition || '',
-    seller: data.contact_name || sellerProfile?.full_name || 'Verified Seller',
+    seller: data.contact_name || sellerProfile?.full_name || (resolvedCat === 'jobs' ? 'Verified Employer' : resolvedCat === 'services' ? 'Verified Service Professional' : 'Verified Seller'),
     phone: data.contact_phone || sellerProfile?.phone || '9876543210',
     allow_whatsapp: data.allow_whatsapp !== false,
     user_id: data.user_id,
@@ -526,7 +526,7 @@ export default function AdDetails() {
       <div className="container mx-auto px-4 py-16 text-center max-w-md">
         <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
         <h2 className="text-2xl font-black text-gray-900 mb-2">Listing Not Found</h2>
-        <p className="text-gray-500 mb-6">This advertisement may have been sold or removed by the seller.</p>
+        <p className="text-gray-500 mb-6">This advertisement may have concluded, expired, or been removed.</p>
         <Link to="/browse" className="btn btn-primary px-6 py-2.5 font-bold">
           Browse All Classifieds
         </Link>
@@ -1048,20 +1048,20 @@ export default function AdDetails() {
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 p-3 sm:hidden shadow-[0_-8px_25px_rgba(0,0,0,0.12)] flex items-center gap-2.5">
           <a
             href={`tel:${telNumber}`}
-            className="flex-1 btn btn-primary py-3 gap-2 rounded-xl text-xs font-black justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20 active:scale-95"
+            className="flex-1 btn btn-primary py-3 gap-2 rounded-xl text-xs font-black justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20 active:scale-95 min-w-0"
           >
             <Phone className="h-4 w-4 flex-shrink-0" />
-            <span>Call Seller</span>
+            <span className="truncate">{catConfig.callButtonLabel}</span>
           </a>
           {ad.allow_whatsapp !== false && (
             <a
-              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, I am interested in your ad "${ad.title}" on URGENIE.`)}`}
+              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(catConfig.whatsappMessage(ad.title))}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 btn py-3 gap-2 rounded-xl text-xs font-black justify-center bg-[#25D366] text-white hover:bg-[#1fb858] shadow-md shadow-emerald-600/20 active:scale-95"
+              className="flex-1 btn py-3 gap-2 rounded-xl text-xs font-black justify-center bg-[#25D366] text-white hover:bg-[#1fb858] shadow-md shadow-emerald-600/20 active:scale-95 min-w-0"
             >
               <MessageCircle className="h-4 w-4 flex-shrink-0" />
-              <span>WhatsApp</span>
+              <span className="truncate">{catConfig.chatButtonLabel}</span>
             </a>
           )}
         </div>
