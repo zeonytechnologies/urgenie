@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { supabase } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 import type { UserRole } from '../types/database';
+import { sendPasswordResetOtp } from '../utils/otpAuth';
 
 export interface Profile {
   id: string;
@@ -49,6 +50,13 @@ const KNOWN_ACCOUNTS: Record<string, { id: string; role: UserRole; name: string;
     name: 'Regular User', 
     phone: '9876543212', 
     city: 'Mathigiri, Hosur' 
+  },
+  'urgenie2026@gmail.com': { 
+    id: 'a7c93812-4d22-4982-9e23-8cf871d32026', 
+    role: 'admin', 
+    name: 'URGENIE Admin', 
+    phone: '9876543219', 
+    city: 'Hosur Town Center, Tamil Nadu' 
   },
 };
 
@@ -366,8 +374,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  const resetPassword = async (_email: string) => {
-    return { error: null };
+  const resetPassword = async (email: string) => {
+    const res = await sendPasswordResetOtp(email);
+    return { error: res.error || null };
   };
 
   const updatePassword = async (newPassword: string): Promise<{ error: string | null }> => {
