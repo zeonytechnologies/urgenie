@@ -1,0 +1,13 @@
+{
+  "name": "urgenie-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "nodemailer": "^6.10.0"
+  }
+}
